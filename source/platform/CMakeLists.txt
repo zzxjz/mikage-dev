@@ -1,0 +1,5 @@
+add_library(platform STATIC file_formats/formats.cpp)
+#target_include_directories(platform PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>)
+target_include_directories(platform PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries(platform framework)
+target_link_libraries(platform range-v3::range-v3)

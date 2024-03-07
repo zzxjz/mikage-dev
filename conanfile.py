@@ -1,0 +1,45 @@
+from conan import ConanFile
+
+class MikageConan(ConanFile):
+    name = "mikage"
+    settings = "os", "compiler", "build_type", "arch"
+    generators = "CMakeDeps"
+
+    requires = [
+        #"boost/1.79.0",
+        "boost/1.80.0",
+        "spdlog/1.10.0",
+        "cryptopp/8.5.0",
+        "sdl/2.0.20", # 2.0.18 fixed swapped X/Y buttons on Switch Pro Controller
+        "range-v3/0.11.0",
+        "catch2/2.13.7",
+        # NOTE: Later shaderc versions have drastically longer shader compile times
+        "shaderc/2021.1",
+        "tracy/0.9.1",
+        "xxhash/0.8.0",
+        "fmt/8.1.1",
+    ]
+
+    def configure(self):
+        # TODO: Works around conan-center-index issue 7118
+        self.options["sdl"].nas = False
+        self.options["sdl"].alsa = False
+        self.options["sdl"].shared = True
+        self.options["pulseaudio"].shared = True
+        self.options["pulseaudio"].with_alsa = False
+        #self.options["sdl"].nas = True
+
+        self.options["tracy"].enable = False # TODO: Allow overriding this setting
+        self.options["tracy"].fibers = True
+
+        if self.settings.os == "Android":
+            # With zlib, libxml2 pulls in pkgconf, which Conan can't build for Android
+            self.options["libxml2"].zlib = False
+
+    def requirements(self):
+        # Pistache does not build on clang
+        if self.settings.os != "Android" and self.settings.compiler != "clang":
+            self.requires("pistache/cci.20201127")
+
+        if self.settings.os != "Android":
+            self.requires("libunwind/1.8.0")
