@@ -34,7 +34,11 @@ add_definitions(-DBOOST_FILESYSTEM_NO_DEPRECATED -DBOOST_COROUTINES_NO_DEPRECATI
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fstrict-aliasing -Wpedantic -Wfatal-errors -Wdocumentation")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fstrict-aliasing -Wpedantic")
 
-find_package(Boost 1.80.0 EXACT REQUIRED CONFIG)
+set(BOOST_COMPONENTS context filesystem iostreams program_options thread)
+find_package(Boost 1.80.0 EXACT CONFIG COMPONENTS ${BOOST_COMPONENTS})
+if (NOT Boost_FOUND)
+    find_package(Boost 1.80.0 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+endif ()
 
 find_package(fmt REQUIRED)
 
@@ -66,7 +70,7 @@ find_package(shaderc REQUIRED)
 #set_property(TARGET proj PROPERTY CXX_STANDARD_REQUIRED ON)
 
 if(NOT ANDROID)
-    find_package(libunwind)
+    find_package(libunwind REQUIRED)
 endif ()
 
 # TODO: find_package-ify

@@ -13,6 +13,17 @@ The Conan install may fail if the shaderc package cannot be found. In this case,
 download our [custom recipe from conan-3ds](https://github.com/mikage-emu/conan-3ds/tree/mikage/packages/shaderc)
 and run `conan export . --version 2021.1` from within this `shaderc` folder.
 
+Some dependencies may be provided by system packages instead of building them
+via Conan. To enable this behavior, add the following to your Conan profile
+(`~/.conan2/profiles/default`):
+```
+[platform_requires]
+boost/1.80.0
+sdl/2.0.20
+range-v3/0.11.0
+catch2/2.13.7
+```
+
 ## Usage
 
 For the first launch, three things must be set up:
