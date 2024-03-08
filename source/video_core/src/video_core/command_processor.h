@@ -23,7 +23,7 @@ union CommandHeader {
     // fourth bit: 0xFF000000
     BitFieldLegacy<16,  4, u32> parameter_mask;
 
-    BitFieldLegacy<20, 11, u32> extra_data_length;
+    BitFieldLegacy<20,  8, u32> extra_data_length;
 
     BitFieldLegacy<31,  1, u32> group_commands;
 };
