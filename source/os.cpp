@@ -5432,6 +5432,17 @@ uint64_t OS::GetTimeInNanoSeconds() const {
 static ticks dsp_tick;
 OS* g_os = nullptr;
 
+static ticks GetDspTick(OS& os) {
+    if (os.settings.get<Settings::EnableAudioEmulation>()) {
+        // DSP clock rate is half the CPU clock rate
+        return os.system_tick / 2;
+    } else {
+        // Disabling DSP emulation entirely would break games.
+        // However we can safely underclock the DSP to save work.
+        return os.system_tick / 64;
+    }
+}
+
 void SetupOSDSPCallbacks(OS& os) {
     static auto dsp_interrupt_handlera = [&os]() {
         fprintf(stderr, "DSP INTERRUPT0\n");
@@ -5457,7 +5468,7 @@ void SetupOSDSPCallbacks(OS& os) {
         g_teakra->SetRecvDataHandler(2, dsp_interrupt_handlerc);
         g_teakra->SetSemaphoreHandler(dsp_interrupt_handler2);
     }
-    dsp_tick = os.system_tick / 2;
+    dsp_tick = GetDspTick(os);
 }
 
 void OS::EnterExecutionLoop() {
@@ -5479,7 +5490,7 @@ void OS::EnterExecutionLoop() {
 //        NotifyInterrupt(0x4a);
 //    };
 
-    /*auto */dsp_tick = system_tick / 2;
+    /*auto */dsp_tick = GetDspTick(*this);
 
     while (!stop_requested) {
         // TODO: Gather these from the "caller" (i.e. the coroutine)
@@ -5492,20 +5503,20 @@ void OS::EnterExecutionLoop() {
 //                g_teakra->SetRecvDataHandler(1, dsp_interrupt_handlerb);
 //                g_teakra->SetRecvDataHandler(2, dsp_interrupt_handlerc);
 //                g_teakra->SetSemaphoreHandler(dsp_interrupt_handler2);
-//                dsp_tick = system_tick / 2;
+//                dsp_tick = GetDspTick(*this);
 //            }
 
             // Run DSP time slices of at least 100 ticks.
             // This number was carefully chosen, since too large minimum bounds
             // trigger hangs.
-            auto dsp_tick_diff = system_tick / 2 - dsp_tick;
+            auto dsp_tick_diff = GetDspTick(*this) - dsp_tick;
             if (dsp_tick_diff.count() > 100) {
                 // For profiling, present DSP emulation as one logical fiber
                 TracyFiberEnter("DSP");
                 TracyCZoneN(DSPSliceZone, "DSPSlice", true);
 //                fprintf(stderr, "Running %d teakra cycles\n", (int)dsp_tick_diff.count());
                 g_teakra->Run(dsp_tick_diff.count());
-                dsp_tick = system_tick / 2;
+                dsp_tick = GetDspTick(*this);
                 TracyCZoneEnd(DSPSliceZone);
                 TracyFiberLeave;
             }

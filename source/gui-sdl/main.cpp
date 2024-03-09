@@ -196,6 +196,7 @@ int main(int argc, char* argv[]) {
             ("shader_engine", bpo::value<Settings::ShaderEngine>()->default_value(Settings::ShaderEngineTag::default_value()), "Select which Shader engine to use (interpreter, bytecode, or glsl)")
             ("enable_logging", bpo::bool_switch(&enable_logging), "Enable logging (slow!)")
             ("bootstrap_nand", bpo::bool_switch(&bootstrap_nand), "Bootstrap NAND from game update partition")
+            ("enable_audio", bpo::bool_switch(), "Enable audio emulation (slow!)")
             ;
 
         boost::program_options::positional_options_description p;
@@ -251,6 +252,8 @@ int main(int argc, char* argv[]) {
             std::cerr << "ERROR: Cannot use GLSL shader engine with software rendering" << std::endl;
             std::exit(1);
         }
+
+        settings.set<Settings::EnableAudioEmulation>(vm["enable_audio"].as<bool>());
 
         if (vm.count("input")) {
             Settings::InitialApplicationTag::HostFile file{vm["input"].as<std::string>()};

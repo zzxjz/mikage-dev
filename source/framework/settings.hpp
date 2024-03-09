@@ -89,6 +89,10 @@ struct ShaderEngineTag : Config::OptionDefault<ShaderEngine> {
     static constexpr const char* name = "ShaderEngine";
 };
 
+struct EnableAudioEmulation : Config::BooleanOption<EnableAudioEmulation> {
+    static constexpr const char* name = "EnableAudioEmulation";
+};
+
 
 struct Settings : Config::Options<CPUEngineTag,
                                   InitialApplicationTag,
@@ -100,6 +104,7 @@ struct Settings : Config::Options<CPUEngineTag,
                                   AttachToProcessOnStartup,
                                   AppMemType,
                                   RendererTag,
-                                  ShaderEngineTag> { };
+                                  ShaderEngineTag,
+                                  EnableAudioEmulation> { };
 
 } // namespace Settings

@@ -35,4 +35,7 @@ Settings::Renderer OptionDefault<Settings::Renderer>::default_val = Settings::Re
 template<>
 Settings::ShaderEngine OptionDefault<Settings::ShaderEngine>::default_val = Settings::ShaderEngine::Bytecode;
 
+template<>
+bool BooleanOption<Settings::EnableAudioEmulation>::default_val = false;
+
 } // namespace Config
