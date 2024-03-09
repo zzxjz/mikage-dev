@@ -31,6 +31,7 @@ target_sources(mikage PRIVATE
                processes/cam.cpp
                processes/cdc.cpp
                processes/cecd.cpp
+               processes/cfg_hpv.cpp
                processes/csnd.cpp
                processes/dlp.cpp
                processes/dsp.cpp

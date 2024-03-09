@@ -3,6 +3,7 @@
 #include "os_hypervisor_private.hpp"
 
 #include "processes/am_hpv.hpp"
+#include "processes/cfg_hpv.hpp"
 #include "processes/dsp_hpv.hpp"
 #include "processes/fs_hpv.hpp"
 #include "processes/ns_hpv.hpp"
@@ -45,6 +46,7 @@ struct State {
 
     HPV::NullContext null_context;
     HPV::AMContext am_context;
+    HPV::CFGContext cfg_context;
     HPV::DSPContext dsp_context;
     HPV::FSContext fs_context;
     HPV::SMContext sm_context;
@@ -112,6 +114,10 @@ std::unordered_map<std::string_view, SessionFactoryType> service_factory_map = {
     { "am:net"sv,   WrapSessionFactory<HPV::CreateAmService,      &HPV::State::am_context> },
     { "am:sys"sv,   WrapSessionFactory<HPV::CreateAmService,      &HPV::State::am_context> },
     { "am:u"sv,     WrapSessionFactory<HPV::CreateAmService,      &HPV::State::am_context> },
+
+    { "cfg:i"sv,    WrapSessionFactory<HPV::CreateCfgService,     &HPV::State::cfg_context> },
+    { "cfg:s"sv,    WrapSessionFactory<HPV::CreateCfgService,     &HPV::State::cfg_context> },
+    { "cfg:u"sv,    WrapSessionFactory<HPV::CreateCfgService,     &HPV::State::cfg_context> },
 
     { "dsp::DSP"sv, WrapSessionFactory<HPV::CreateDspService,     &HPV::State::dsp_context> },
 
