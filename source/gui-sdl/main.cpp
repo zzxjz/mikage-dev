@@ -346,9 +346,9 @@ if (bootstrap_nand) // Experimental system bootstrapper
         // Normally, this is the Camera app, which isn't bundled in game update
         // partitions. Since the setup only reads the ExeFS icon that aren't
         // specific to the Camera app (likely to perform general checks), we
-        // use the Sound app as a drop-in replacement if needed.
+        // use the Download Play app as a drop-in replacement if needed.
         if (!std::filesystem::exists("./data/00040010/00022400")) {
-            std::filesystem::copy("./data/00040010/00022500", "./data/00040010/00022400", std::filesystem::copy_options::recursive);
+            std::filesystem::copy("./data/00040010/00022100", "./data/00040010/00022400", std::filesystem::copy_options::recursive);
         }
 
         std::filesystem::create_directories("./data/ro/sys");
