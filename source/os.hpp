@@ -1550,6 +1550,7 @@ public: // TODO: Ugh.
 public: // TODO: privatize this again!
     std::list<std::weak_ptr<Thread>> ready_queue; // Queue of threads that are ready to run
 //     std::list<std::weak_ptr<Thread>> priority_queue; // Queue of threads that are ready to run and should be prioritized over those in ready_queue (e.g. because they had been waiting on an event that was just signalled)
+    std::vector<std::weak_ptr<Thread>> waiting_queue; // List of threads waiting on a timeout
 
     std::shared_ptr<MemoryBlockOwner> internal_memory_owner;
 

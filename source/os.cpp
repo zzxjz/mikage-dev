@@ -2290,6 +2290,7 @@ SVCEmptyFuture OS::SVCSleepThread(Thread& source, int64_t duration) {
     source.status = Thread::Status::WaitingForTimeout;
     ready_queue.remove_if([ptr=source.GetPointer()](auto elem) { return elem.lock() == ptr; });
 //     priority_queue.remove_if([ptr=source.GetPointer()](auto elem) { return elem.lock() == ptr; });
+    waiting_queue.push_back(source.GetPointer());
 
     return MakeFuture(nullptr);
 }
@@ -2737,6 +2738,9 @@ break;
             source.status = Thread::Status::WaitingForArbitration;
             ready_queue.remove_if([ptr=source.GetPointer()](auto elem) { return elem.lock() == ptr; });
 //             priority_queue.remove_if([ptr=source.GetPointer()](auto elem) { return elem.lock() == ptr; });
+            if (source.timeout_at != -1) {
+                waiting_queue.push_back(source.GetPointer());
+            }
 
             Reschedule(source.GetPointer());
         }
@@ -2946,6 +2950,9 @@ SVCFuture<PromisedResult,PromisedWakeIndex> OS::SVCWaitSynchronizationN(Thread& 
         source.status = Thread::Status::Sleeping;
         ready_queue.remove_if([ptr=source.GetPointer()](auto elem) { return elem.lock() == ptr; });
 //         priority_queue.remove_if([ptr=source.GetPointer()](auto elem) { return elem.lock() == ptr; });
+        if (source.timeout_at != -1) {
+            waiting_queue.push_back(source.GetPointer());
+        }
         source.GetLogger()->info("{}Putting thread into sleep state...", ThreadPrinter{source});
         Reschedule(source.GetPointer());
     } else {
@@ -5779,12 +5786,9 @@ void OS::ElapseTime(std::chrono::nanoseconds time) {
     }*/
 
     // TODO NOW: This should also be checked for threads waiting for arbitration or events with timeout!!!
-    for (auto thread_weak : threads) {
-        // TODO: This looks really expensive... Should just keep a list of threads waiting for timeout
-        auto thread = thread_weak.lock();
-        if (thread &&
-            (thread->status == Thread::Status::WaitingForTimeout || thread->status == Thread::Status::Sleeping) &&
-            thread->timeout_at != -1 && thread->timeout_at <= GetTimeInNanoSeconds()) {
+    for (auto thread_it = waiting_queue.begin(); thread_it != waiting_queue.end();) {
+        auto thread = thread_it->lock();
+        if (thread->timeout_at <= GetTimeInNanoSeconds()) {
             thread->GetLogger()->info("{}Waking up thread after timeout", ThreadPrinter{*thread});
 
             // status==Sleeping corresponds to WaitSynchronizationN timing out... TODO: This is extremely ugly, clean this up instead :/
@@ -5801,6 +5805,9 @@ void OS::ElapseTime(std::chrono::nanoseconds time) {
             thread->status = Thread::Status::Ready;
             ready_queue.push_back(thread);
 //             priority_queue.push_back(thread);
+            thread_it = waiting_queue.erase(thread_it);
+        } else {
+            ++thread_it;
         }
     }
 }
@@ -6002,6 +6009,7 @@ void OS::StartScheduler(boost::coroutines::symmetric_coroutine<void>::yield_type
         if (next_thread->status == Thread::Status::WaitingForTimeout &&
             next_thread->timeout_at <= GetTimeInNanoSeconds()) {
             next_thread->status = Thread::Status::Ready;
+            waiting_queue.erase(std::remove_if(waiting_queue.begin(), waiting_queue.end(), [&next_thread](auto& elem) { return elem.lock() == next_thread; }));
         }
 
         if (next_thread->status == Thread::Status::Ready) {
