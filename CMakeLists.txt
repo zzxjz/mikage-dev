@@ -8,8 +8,9 @@ project(mikage)
 
 enable_testing()
 
-if (NOT ANDROID)
-    add_link_options("-fuse-ld=mold")
+set(OVERRIDE_LINKER "" CACHE STRING "Linker to use for compilation")
+if (OVERRIDE_LINKER)
+    add_link_options("-fuse-ld=${OVERRIDE_LINKER}")
 endif()
 
 option(USE_ASAN "Enable address sanitizer" OFF)
