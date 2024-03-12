@@ -578,7 +578,6 @@ if (bootstrap_nand) // Experimental system bootstrapper
     std::unique_ptr<EmuSession> session;
 
     try {
-        // TODO: Drop logging
         for (auto key_index : ranges::views::indexes(keydb.aes_slots)) {
             auto& aes_slot = keydb.aes_slots[key_index];
             for (auto key_type : { 'X', 'Y', 'N' }) {
@@ -586,14 +585,14 @@ if (bootstrap_nand) // Experimental system bootstrapper
                             : key_type == 'Y' ? aes_slot.y
                             : aes_slot.n;
                 if (key.has_value()) {
-                    frontend_logger->info("Parsed key{} for slot {:#4x}: {:02x}\n", key_type, key_index, fmt::join(key.value(), ""));
+                    frontend_logger->info("Parsed key{} for slot {:#4x}", key_type, key_index);
                 }
             }
         }
         for (auto key_index : ranges::views::indexes(keydb.common_y)) {
             auto& key = keydb.common_y[key_index];
             if (key.has_value()) {
-                frontend_logger->info("Parsed common{}: {:02x}\n", key_index, fmt::join(key.value(), ""));
+                frontend_logger->info("Parsed common{}", key_index);
             }
         }
 
