@@ -1,6 +1,7 @@
 # 3.11 added support for interface libraries
 # 3.13 detects and target-izes all of our boost dependencies properly
-cmake_minimum_required(VERSION 3.13)
+# 3.15 added CMAKE_FIND_PACKAGE_PREFER_CONFIG
+cmake_minimum_required(VERSION 3.15)
 
 include(ExternalProject)
 
@@ -20,10 +21,11 @@ if (USE_ASAN)
     add_link_options(-fsanitize=address)
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/externals/cmake")
-
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Prefer Conan-provided packages over system ones
+set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
 
 # TODO: Move these flags into a "boost" cmake target
 add_definitions(-DBOOST_FILESYSTEM_NO_DEPRECATED -DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
@@ -36,10 +38,7 @@ add_definitions(-DBOOST_FILESYSTEM_NO_DEPRECATED -DBOOST_COROUTINES_NO_DEPRECATI
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fstrict-aliasing -Wpedantic")
 
 set(BOOST_COMPONENTS context filesystem iostreams program_options thread)
-find_package(Boost 1.80.0 EXACT CONFIG COMPONENTS ${BOOST_COMPONENTS})
-if (NOT Boost_FOUND)
-    find_package(Boost 1.80.0 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
-endif ()
+find_package(Boost 1.80.0 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 
 find_package(fmt REQUIRED)
 
