@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.13)
 
 include(ExternalProject)
 
-project(jmavu)
+project(mikage)
 
 enable_testing()
 

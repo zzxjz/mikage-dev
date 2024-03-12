@@ -481,7 +481,7 @@ if (bootstrap_nand) // Experimental system bootstrapper
 //        SDL_AUDIO_DRIVER_DISK
 //SDL_AUDIO_DRIVER_DISK;
     fmt::print(stderr, "Opening SDL audio device\n");
-    auto device_id = SDL_OpenAudioDevice(nullptr /*"sdlaudio.raw"*/ /*"/home/tony/coding/jmavu/build/audio.raw"*/, false, &desired_audio_spec, &audio_spec, 0 /* no allowed changes; let SDL auto-convert */);
+    auto device_id = SDL_OpenAudioDevice(nullptr, false, &desired_audio_spec, &audio_spec, 0 /* no allowed changes; let SDL auto-convert */);
     if (device_id == 0) {
         throw std::runtime_error("Failed to open SDL audio device");
     }
