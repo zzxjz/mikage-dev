@@ -363,8 +363,6 @@ public:
      */
     std::weak_ptr<Object> woken_object;
 
-    std::shared_ptr<Session> incoming_session;
-
     // Notify thread of a resource being ready for being TryAcquire'ed
     // TODO: This function is unused now!
     void SignalResourceReady();

@@ -1101,16 +1101,12 @@ void ObserverSubject::Unregister(std::shared_ptr<Thread> thread) {
 
 // TODOTEST: What happens if the application were doing something stupid like
 // SVCWaitSynchronizationN'ing on multiple server port handles with the
-// wait_for_all flag set to true? In our implementation, incoming_session
-// would be overwritten and hence the first server port acquisition being
-// silently dropped!
+// wait_for_all flag set to true?
 bool ServerPort::TryAcquireImpl(std::shared_ptr<Thread> thread) {
-    if (session_queue.empty())
-        return false;
-
-    thread->incoming_session = session_queue.front();
-    session_queue.pop();
-    return true;
+    // NOTE: Some modules call SVCWaitSynchronization again after waking up
+    //       on a ServerPort handle in SVCReplyAndReceive. Hence, acquisition
+    //       must be idempotent.
+    return !session_queue.empty();
 }
 
 void ServerPort::OfferSession(std::shared_ptr<Session> session) {
@@ -3304,11 +3300,12 @@ SVCFuture<OS::Result,HandleTable::Entry<ServerSession>,HandleTable::Entry<Client
 SVCFuture<OS::Result,HandleTable::Entry<ServerSession>> OS::SVCAcceptSession(Thread& source, ServerPort& server_port) {
     source.GetLogger()->info("{}SVCAcceptSession: server_port={}", ThreadPrinter{source}, ObjectRefPrinter{server_port});
 
-    if (!source.incoming_session) {
+    if (server_port.session_queue.empty()) {
         throw Mikage::Exceptions::Invalid("Attempted to accept nonexisting session");
     }
+    auto session = server_port.session_queue.front();
+    server_port.session_queue.pop();
 
-    std::shared_ptr<Session> session = std::move(source.incoming_session);
     source.GetLogger()->info("{}SVCAcceptSession: accepting session {} / {}", ThreadPrinter{source},
                              ObjectPrinter{session}, ObjectPrinter{session->client.lock()});
 
