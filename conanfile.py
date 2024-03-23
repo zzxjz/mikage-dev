@@ -13,8 +13,7 @@ class MikageConan(ConanFile):
         "sdl/2.0.20", # 2.0.18 fixed swapped X/Y buttons on Switch Pro Controller
         "range-v3/0.11.0",
         "catch2/2.13.7",
-        # NOTE: Later shaderc versions have drastically longer shader compile times
-        "shaderc/2021.1",
+        "glslang/11.7.0",
         "tracy/0.9.1",
         "xxhash/0.8.0",
         "fmt/8.1.1",

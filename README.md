@@ -9,10 +9,6 @@ CMake and Conan 2 are required to build Mikage.
 * ``cmake -DCMAKE_BUILD_TYPE=Release .. -G Ninja -DCMAKE_PREFIX_PATH=`realpath .` ``
 * `ninja`
 
-The Conan install may fail if the shaderc package cannot be found. In this case,
-download our [custom recipe from conan-3ds](https://github.com/mikage-emu/conan-3ds/tree/mikage/packages/shaderc)
-and run `conan export . --version 2021.1` from within this `shaderc` folder.
-
 Some dependencies may be provided by system packages instead of building them
 via Conan. To enable this behavior, add the following to your Conan profile
 (`~/.conan2/profiles/default`):

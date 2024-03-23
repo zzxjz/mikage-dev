@@ -257,7 +257,7 @@ EmuDisplay::EmuDisplay(spdlog::logger& logger, vk::PhysicalDevice physical_devic
                                 "    gl_Position = vec4(1.0, 1.0, 0.0, 1.0);\n"
                                 "  }\n"
                                 "}\n";
-            auto shader_spv = CompileShader(shaderc_glsl_vertex_shader, code, "main");
+            auto shader_spv = CompileShader(EShLangVertex, code, "main");
 
             vk::ShaderModuleCreateInfo shader_module_info {
                 vk::ShaderModuleCreateFlags { }, shader_spv.size() * sizeof(shader_spv.data()[0]), shader_spv.data()
@@ -276,7 +276,7 @@ EmuDisplay::EmuDisplay(spdlog::logger& logger, vk::PhysicalDevice physical_devic
                                 // NOTE: Alpha channel is set to 1.0 here because the Qt frontend requires this for overlay effects (blur, ...) to work
                                 "  out_color = vec4(texture(sampler0, -gl_FragCoord.yx * vec2(" + std::to_string(1.0 / height) + ", " + std::to_string(1.0 / width) + ")).rgb, 1.0);\n"
                                 "}\n";
-            auto shader_spv = CompileShader(shaderc_glsl_fragment_shader, code.c_str(), "main");
+            auto shader_spv = CompileShader(EShLangFragment, code.c_str(), "main");
 
             vk::ShaderModuleCreateInfo shader_module_info {
                 vk::ShaderModuleCreateFlags { }, shader_spv.size() * sizeof(shader_spv.data()[0]), shader_spv.data()

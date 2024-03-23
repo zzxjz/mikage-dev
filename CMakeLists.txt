@@ -63,7 +63,9 @@ find_package(Tracy REQUIRED)
 
 find_package(xxHash REQUIRED)
 
-find_package(shaderc REQUIRED)
+find_package(Vulkan REQUIRED)
+
+find_package(glslang REQUIRED)
 
 # TODO: These don't actually work for some reason :<
 #set_property(TARGET proj PROPERTY CXX_STANDARD 14)

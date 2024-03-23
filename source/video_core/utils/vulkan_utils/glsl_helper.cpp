@@ -1,14 +1,39 @@
 #include "glsl_helper.hpp"
 
+#include <glslang/Public/ResourceLimits.h>
+#include <glslang/SPIRV/GlslangToSpv.h>
+
 #include <cstring>
 
-std::vector<uint32_t> CompileShader(shaderc_shader_kind kind, const char* code, const char* entrypoint) {
-    shaderc::Compiler compiler;
-    shaderc::CompileOptions options;
-
-    auto result = compiler.CompileGlslToSpv(code, strlen(code), kind, "pipeline_shader", entrypoint, options);
-    if (result.GetCompilationStatus() != shaderc_compilation_status_success) {
-        throw std::runtime_error("Failed to compile shader: " + result.GetErrorMessage() + "\nShader code: \n" + code);
+const struct InitGlslang {
+    InitGlslang() {
+        glslang::InitializeProcess();
     }
-    return std::vector<uint32_t>(result.begin(), result.end());
+    ~InitGlslang() {
+        glslang::FinalizeProcess();
+    }
+} manage_glslang;
+
+std::vector<uint32_t> CompileShader(EShLanguage kind, const char* code, const char* entrypoint) {
+    glslang::TShader shader(kind);
+    shader.setEntryPoint(entrypoint);
+    shader.setStrings(&code, 1);
+    shader.setEnvInput(glslang::EShSourceGlsl, kind, glslang::EShClientVulkan, 100);
+    shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_2);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
+
+    shader.parse(GetDefaultResources(), 100, false, EShMsgDefault);
+
+    // TODO: Print shader.getInfoLog()
+
+    glslang::TProgram program;
+    program.addShader(&shader);
+    program.link(EShMsgDefault);
+    // TODO: Print program.getInfoLog()
+
+    // TODO: Set up flags: optimization, validation, ...
+    glslang::TIntermediate& intermediate = *program.getIntermediate(kind);
+    std::vector<uint32_t> result;
+    glslang::GlslangToSpv(intermediate, result);
+    return result;
 }

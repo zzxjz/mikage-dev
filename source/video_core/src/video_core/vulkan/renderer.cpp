@@ -1244,7 +1244,7 @@ void Renderer::FinalizeTriangleBatchInternal(Context& context, const VertexShade
         auto vertex_shader = std::invoke([&] {
             auto& shader = shader_cache[0][vertex_shader_code];
             if (!shader) {
-                auto shader_spv = CompileShader(shaderc_glsl_vertex_shader, vertex_shader_code.c_str(), "main");
+                auto shader_spv = CompileShader(EShLangVertex, vertex_shader_code.c_str(), "main");
 
                 vk::ShaderModuleCreateInfo shader_module_info {
                     vk::ShaderModuleCreateFlags { }, shader_spv.size() * sizeof(shader_spv.data()[0]), shader_spv.data()
@@ -1256,7 +1256,7 @@ void Renderer::FinalizeTriangleBatchInternal(Context& context, const VertexShade
         auto pixel_shader = std::invoke([&] {
             auto& shader = shader_cache[1][fragment_shader_code];
             if (!shader) {
-                auto shader_spv = CompileShader(shaderc_glsl_fragment_shader, fragment_shader_code.c_str(), "main");
+                auto shader_spv = CompileShader(EShLangFragment, fragment_shader_code.c_str(), "main");
 
                 vk::ShaderModuleCreateInfo shader_module_info {
                     vk::ShaderModuleCreateFlags { }, shader_spv.size() * sizeof(shader_spv.data()[1]), shader_spv.data()
