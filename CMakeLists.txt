@@ -48,7 +48,13 @@ find_package(SDL2 REQUIRED)
 
 find_package(spdlog REQUIRED)
 
-find_package(cryptopp REQUIRED)
+include(FindPkgConfig)
+
+find_package(cryptopp)
+if (NOT cryptopp_FOUND)
+    pkg_search_module(cryptopp REQUIRED IMPORTED_TARGET cryptopp libcryptopp)
+    add_library(cryptopp::cryptopp ALIAS PkgConfig::cryptopp)
+endif()
 
 find_package(Pistache)
 if (Pistache_FOUND)
@@ -72,7 +78,11 @@ find_package(glslang REQUIRED)
 #set_property(TARGET proj PROPERTY CXX_STANDARD_REQUIRED ON)
 
 if(NOT ANDROID)
-    find_package(libunwind REQUIRED)
+    find_package(libunwind)
+    if (NOT libunwind_FOUND)
+        pkg_search_module(libunwind IMPORTED_TARGET libunwind)
+        add_library(libunwind::unwind ALIAS PkgConfig::libunwind)
+    endif()
 endif ()
 
 # TODO: find_package-ify

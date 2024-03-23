@@ -15,9 +15,11 @@ via Conan. To enable this behavior, add the following to your Conan profile
 ```
 [platform_requires]
 boost/1.80.0
+cryptopp/8.5.0
 sdl/2.0.20
 range-v3/0.11.0
 catch2/2.13.7
+libunwind/1.8.0
 ```
 
 ## Usage
