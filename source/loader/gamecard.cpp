@@ -49,7 +49,7 @@ static bool IsLoadableCXIFile(HLE::PXI::FS::File& file) {
     // TODO: Enable proper logging
     auto logger = std::make_shared<spdlog::logger>("dummy", std::make_shared<spdlog::sinks::null_sink_st>());
     auto file_context = HLE::PXI::FS::FileContext { *logger };
-    file.Open(file_context, false);
+    file.OpenReadOnly(file_context);
 
     FileFormat::NCCHHeader header;
     auto [result, bytes_read] = file.Read(file_context, 0, sizeof(header), HLE::PXI::FS::FileBufferInHostMemory(header));
@@ -80,7 +80,7 @@ std::optional<std::unique_ptr<HLE::PXI::FS::File>> GameCardFromCCI::GetPartition
     auto file_context = HLE::PXI::FS::FileContext { *logger };
     auto cci_file = std::visit(GameCardSourceOpener{}, source);
 
-    cci_file->Open(file_context, false);
+    cci_file->OpenReadOnly(file_context);
     FileFormat::NCSDHeader ncsd;
     cci_file->Read(file_context, 0, decltype(ncsd)::Tags::expected_serialized_size, HLE::PXI::FS::FileBufferInHostMemory(ncsd));
     cci_file->Close();
@@ -94,7 +94,7 @@ static bool IsLoadableCCIFile(HLE::PXI::FS::File& file) {
     // TODO: Enable proper logging
     auto logger = std::make_shared<spdlog::logger>("dummy", std::make_shared<spdlog::sinks::null_sink_st>());
     auto file_context = HLE::PXI::FS::FileContext { *logger };
-    file.Open(file_context, false);
+    file.OpenReadOnly(file_context);
 
     FileFormat::NCSDHeader header;
     auto [result, bytes_read] = file.Read(file_context, 0, sizeof(header), HLE::PXI::FS::FileBufferInHostMemory(header));
@@ -244,12 +244,12 @@ public:
         exheader.aci_limits.flags = exheader.aci_limits.flags.ideal_processor()(1).priority()(0x18);
     }
 
-    HLE::OS::OS::ResultAnd<> Open(HLE::PXI::FS::FileContext& context, bool create_or_truncate) override {
-        if (create_or_truncate) {
+    HLE::OS::OS::ResultAnd<> Open(HLE::PXI::FS::FileContext& context, HLE::PXI::FS::OpenFlags flags) override {
+        if (flags.create) {
             throw std::runtime_error("Can't create/truncate game cards");
         }
 
-        auto ret = file->Open(context, create_or_truncate);
+        auto ret = file->Open(context, flags);
         if (ret != std::tie(HLE::OS::RESULT_OK)) {
             return ret;
         }
@@ -554,7 +554,7 @@ static bool IsLoadable3DSXFile(HLE::PXI::FS::File& file) {
     // TODO: Enable proper logging
     auto logger = std::make_shared<spdlog::logger>("dummy", std::make_shared<spdlog::sinks::null_sink_st>());
     auto file_context = HLE::PXI::FS::FileContext { *logger };
-    file.Open(file_context, false);
+    file.OpenReadOnly(file_context);
 
     FileFormat::Dot3DSX::Header header;
     auto [result, bytes_read] = file.Read(file_context, 0, sizeof(header), HLE::PXI::FS::FileBufferInHostMemory(header));

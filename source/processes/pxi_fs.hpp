@@ -75,6 +75,12 @@ public:
     void Write(char* source, uint32_t num_bytes) override;
 };
 
+struct OpenFlags {
+    bool read = true;
+    bool write = true;
+    bool create = false; // create or truncate
+};
+
 class File {
     [[noreturn]] void Fail();
 
@@ -86,9 +92,13 @@ public:
     /**
      * Open the given file on the disk.
      * Returns an error if the file does not exist unless the "create" flag is set.
-     * If the file does already exist and the "create_or_truncate" flag is set, the file contents are discarded.
+     * If the file does already exist and the "create" flag is set, the file contents are discarded.
      */
-    virtual OS::ResultAnd<> Open(FileContext&, bool create_or_truncate);
+    virtual OS::ResultAnd<> Open(FileContext&, OpenFlags);
+
+    OS::ResultAnd<> OpenReadOnly(FileContext& context) {
+        return Open(context, { .write = false });
+    }
 
     /**
      * @return Result code and number of bytes read (0 on error)
@@ -131,7 +141,7 @@ private:
 public:
     HostFile(std::string_view path, Policy policy);
 
-    OS::ResultAnd<> Open(FileContext&, bool create) override;
+    OS::ResultAnd<> Open(FileContext&, OpenFlags create) override;
 
     OS::ResultAnd<> SetSize(OS::FakeThread& thread, uint64_t size) override;
     OS::ResultAnd<uint64_t> GetSize(FileContext&) override;
@@ -154,7 +164,7 @@ class FileView final : public File {
 public:
     FileView(std::unique_ptr<File> file, uint64_t offset, uint32_t num_bytes, boost::optional<std::array<uint8_t, 0x20>> precomputed_hash = boost::none);
 
-    OS::ResultAnd<> Open(FileContext&, bool create) override;
+    OS::ResultAnd<> Open(FileContext&, OpenFlags) override;
 
     // SetSize is not allowed on views
     // OS::ResultAnd<> SetSize(OS::FakeThread& thread, uint64_t size) override;

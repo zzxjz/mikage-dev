@@ -287,7 +287,7 @@ if (bootstrap_nand) // Experimental system bootstrapper
         }
 
         auto file_context = HLE::PXI::FS::FileContext { *frontend_logger };
-        auto [result] = (*update_partition)->Open(file_context, false);
+        auto [result] = (*update_partition)->OpenReadOnly(file_context);
         if (result != HLE::OS::RESULT_OK) {
             throw std::runtime_error("Failed to open update partition");
         }
@@ -298,7 +298,7 @@ if (bootstrap_nand) // Experimental system bootstrapper
         FileFormat::RomFSLevel3Header level3_header;
         const uint32_t lv3_offset = 0x1000;
 
-        std::tie(result) = romfs->Open(file_context, false);
+        std::tie(result) = romfs->OpenReadOnly(file_context);
         uint32_t bytes_read;
         std::tie(result, bytes_read) = romfs->Read(file_context, lv3_offset, sizeof(level3_header), HLE::PXI::FS::FileBufferInHostMemory(level3_header));
         if (result != HLE::OS::RESULT_OK) {

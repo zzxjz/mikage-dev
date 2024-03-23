@@ -229,8 +229,8 @@ void File::Fail() {
     throw std::runtime_error("Unspecified error in PXI file operation");
 }
 
-OS::ResultAnd<> File::Open(FileContext& context, bool create_or_truncate) {
-    return Open(context, create_or_truncate);
+OS::ResultAnd<> File::Open(FileContext& context, OpenFlags flags) {
+    return Open(context, flags);
 }
 
 OS::ResultAnd<uint32_t> File::Read(FileContext&, uint64_t offset, uint32_t num_bytes, FileBuffer&& dest) {
@@ -331,8 +331,8 @@ public:
         : file(std::move(file)), aes_offset(aes_offset), key(key), iv(iv) {
     }
 
-    OS::ResultAnd<> Open(FileContext& context, bool create) override {
-        return file->Open(context, create);
+    OS::ResultAnd<> Open(FileContext& context, OpenFlags flags) override {
+        return file->Open(context, flags);
     }
 
     OS::ResultAnd<uint64_t> GetSize(FileContext& context) override {
@@ -357,7 +357,7 @@ class DummyExeFSFile final : public File {
 public:
     DummyExeFSFile() {}
 
-    OS::ResultAnd<> Open(FileContext&, bool) override {
+    OS::ResultAnd<> Open(FileContext&, OpenFlags) override {
         return { RESULT_OK };
     }
 
@@ -557,7 +557,7 @@ std::unique_ptr<File> OpenNCCHSubFile(Thread& thread, Platform::FS::ProgramInfo 
     }
 
     FileContext file_context { *thread.GetLogger() };
-    auto result = ncch->Open(file_context, false);
+    auto result = ncch->OpenReadOnly(file_context);
     if (std::get<0>(result) != RESULT_OK) {
         throw std::runtime_error(fmt::format(   "Tried to access non-existing title {:#x} from emulated NAND.\n\nPlease dump the title from your 3DS and install it manually to this path:\n{}",
                                                 program_info.program_id, (char*)file_path.data()));
@@ -685,7 +685,7 @@ static std::tuple<Result, uint64_t> OpenFile(FakeThread& thread, Context& contex
     // TODO: Respect flags & ~0x4 ... in particular, write/read-only!
     if (file) {// TODO: Remove this check! We only do this so that we don't need to implement archive 0x56789a0b0 properly...
     FileContext file_context { *thread.GetLogger() };
-    std::tie(result) = file->Open(file_context, flags & 0x4);
+    std::tie(result) = file->Open(file_context, { .create = flags & 0x4 });
     }
     if (result != RESULT_OK) {
         thread.GetLogger()->warn("Failed to open file");

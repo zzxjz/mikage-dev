@@ -190,7 +190,7 @@ FakePXI::FakePXI(FakeThread& thread)
 namespace PM = Platform::PXI::PM;
 
 FileFormat::ExHeader GetExtendedHeader(FS::FileContext& file_context, const KeyDatabase& keydb, HLE::PXI::FS::File& ncch_file) {
-    ncch_file.Open(file_context, false);
+    ncch_file.OpenReadOnly(file_context);
 
     std::array<uint8_t, FileFormat::NCCHHeader::Tags::expected_serialized_size> ncch_raw;
     auto [result, bytes_read] = ncch_file.Read(file_context, 0, sizeof(ncch_raw), FS::FileBufferInHostMemory(ncch_raw.data(), sizeof(ncch_raw)));

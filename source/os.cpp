@@ -996,7 +996,7 @@ public:
         HLE::PXI::FS::FileContext file_context { *GetLogger() };
         std::vector<uint8_t> firm_data;
         {
-            firm_file->Open(file_context, false);
+            firm_file->OpenReadOnly(file_context);
             auto [result, num_bytes] = firm_file->GetSize(file_context);
             if (result != RESULT_OK) {
                 throw std::runtime_error("Could not determine file size");

@@ -13,7 +13,7 @@ public:
     NativeFile(int file_descriptor) : source(file_descriptor, boost::iostreams::never_close_handle) {
     }
 
-    HLE::OS::ResultAnd<> Open(HLE::PXI::FS::FileContext&, bool create) override {
+    HLE::OS::ResultAnd<> Open(HLE::PXI::FS::FileContext&, HLE::PXI::FS::OpenFlags) override {
         // Nothing to do
         return std::make_tuple(HLE::OS::RESULT_OK);
     }

@@ -22,18 +22,24 @@ HostFile::HostFile(std::string_view path, Policy policy) : path(std::begin(path)
     stream.exceptions(std::ifstream::failbit | std::ifstream::badbit | std::ifstream::eofbit);
 }
 
-ResultAnd<> HostFile::Open(FileContext& context, bool create_or_truncate) {
-    context.logger.info("Attempting to open {} (create={})", path, create_or_truncate);
+ResultAnd<> HostFile::Open(FileContext& context, OpenFlags flags) {
+    context.logger.info("Attempting to open {} (create={})", path, flags.create);
 
-    if (!create_or_truncate && !boost::filesystem::exists(path)) {
+    if (!flags.create && !boost::filesystem::exists(path)) {
         return std::make_tuple(-1);
     }
 
-    // TODO: Add support for read-only/write-only files
     // NOTE: When we only specify read-mode, this would fail to create a file. Test what happens on the actual system in such a case!
-    auto stream_flags = std::ios_base::in | std::ios_base::out | std::ios_base::binary;
-    if (create_or_truncate)
+    auto stream_flags = std::ios_base::binary;
+    if (flags.read) {
+        stream_flags |= std::ios_base::in;
+    }
+    if (flags.write) {
+        stream_flags |= std::ios_base::out;
+    }
+    if (flags.create) {
         stream_flags |= std::ios_base::trunc;
+    }
 
     try {
         // TODO: We should make sure files are never opened twice instead (currently, this happens for gamecard though). What if, for instance, one were to call Open twice with different flags? The stream wouldn't get updated for this change!
@@ -107,7 +113,7 @@ FileView::FileView(std::unique_ptr<File> file, uint64_t offset, uint32_t num_byt
 //     }
 }
 
-OS::ResultAnd<> FileView::Open(FileContext& context, bool create) {
+OS::ResultAnd<> FileView::Open(FileContext& context, OpenFlags flags) {
     context.logger.info("Opening FileView at offset={:#x} for {:#x} bytes of data", offset, num_bytes);
 
     if (auto [result, size] = file->GetSize(context); result != OS::RESULT_OK || offset + num_bytes > size) {
@@ -116,11 +122,11 @@ OS::ResultAnd<> FileView::Open(FileContext& context, bool create) {
     }
 
     // The "create" flag doesn't have well-defined semantics for file views
-    if (create) {
+    if (flags.create) {
         throw std::runtime_error("Cannot set create flag on file views");
     }
 
-    return file->Open(context, create);
+    return file->Open(context, flags);
 }
 
 OS::ResultAnd<uint64_t> FileView::GetSize(FileContext&) {

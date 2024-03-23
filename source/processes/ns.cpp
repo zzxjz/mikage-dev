@@ -147,7 +147,7 @@ HandleTable::Entry<Process> LoadProcessFromFile(FakeThread& source,
         auto input_file = PXI::FS::NCCHOpenExeFSSection(*source.GetLogger(), file_context,
                                                         source.GetParentProcess().interpreter_setup.keydb,
                                                         std::move(file), 1, std::basic_string_view<uint8_t>(code, sizeof(code)));
-        if (std::get<0>(input_file->Open(file_context, false)) != RESULT_OK) {
+        if (std::get<0>(input_file->OpenReadOnly(file_context)) != RESULT_OK) {
             // TODO: Better error message
             throw std::runtime_error("Could not launch title from emulated NAND.");
         }
@@ -394,7 +394,7 @@ OS::ResultAnd<ProcessId> LaunchTitleInternal(FakeThread& source, bool from_firm,
     uint8_t code[8] = { '.', 'c', 'o', 'd', 'e' };
     auto input_file = PXI::FS::OpenNCCHSubFile(source, info, 0, 1, std::basic_string_view<uint8_t>(code, sizeof(code)), source.GetOS().setup.gamecard.get());
     HLE::PXI::FS::FileContext file_context { *source.GetLogger() };
-    if (std::get<0>(input_file->Open(file_context, false)) != RESULT_OK) {
+    if (std::get<0>(input_file->OpenReadOnly(file_context)) != RESULT_OK) {
         throw std::runtime_error(fmt::format(   "Tried to launch non-existing title {:#x} from emulated NAND.\n\nPlease dump the title from your 3DS and install it manually to this path:\n{}",
                                                 title_id, "filename" /* TODO */));
     }
