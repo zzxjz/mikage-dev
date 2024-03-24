@@ -489,6 +489,16 @@ public:
 
             auto program_code = ReadProgramCode(context, dot3dsxheader);
             dest.Write(reinterpret_cast<char*>(program_code.data()), program_code.size());
+        } else if (offset == ncch.romfs_offset.ToBytes() && num_bytes <= 4) {
+            // This is the location for the magic "IVFC" string in the RomFS
+            // header. 3DSX files don't contain this header, so we just return
+            // fake data instead.
+            // NOTE: NCCHOpenExeFSSection reads this specific location to
+            //       ensure the RomFS was decrypted properly.
+            char data[] = "IVFC";
+            dest.Write(data, 4);
+            offset += 4;
+            num_bytes = 0;
         } else if (offset >= ncch.romfs_offset.ToBytes() + 0x1000 && offset + num_bytes <= ncch.romfs_offset.ToBytes() + ncch.romfs_size.ToBytes()) {
             if (!dot3dsx_secondary_header) {
                 throw std::runtime_error("Tried reading RomFS even though no RomFS is present");
