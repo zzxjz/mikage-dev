@@ -518,6 +518,11 @@ public:
     }
 
     HLE::OS::OS::ResultAnd<uint64_t> GetSize(HLE::PXI::FS::FileContext& context) override {
+        if (ncch.romfs_size.ToBytes()) {
+            // RomFS may extend past original 3DSX size, since its start offset is aligned in NCCH but not in 3DSX
+            return std::make_tuple(HLE::OS::RESULT_OK, uint64_t { ncch.romfs_offset.ToBytes() + ncch.romfs_size.ToBytes() });
+        }
+
         // Return original file size as upper bound; this is merely needed to prevent the bounds check in FileViews from failing
         return file->GetSize(context);
     }
