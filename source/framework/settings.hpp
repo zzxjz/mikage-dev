@@ -9,6 +9,38 @@
 
 namespace Settings {
 
+// Path to use for configuration files
+struct PathConfigDir : Config::Option {
+    static constexpr const char* name = "PathConfigDir";
+    using type = std::string;
+    static type default_value() { return default_val; }
+    static type default_val;
+};
+
+// Path for read-only data files created during installation
+struct PathImmutableDataDir : Config::Option {
+    static constexpr const char* name = "PathImmutableDataDir";
+    using type = std::string;
+    static type default_value() { return default_val; }
+    static type default_val;
+};
+
+// Path for data that must be writable
+struct PathDataDir : Config::Option {
+    static constexpr const char* name = "PathDataDir";
+    using type = std::string;
+    static type default_value() { return default_val; }
+    static type default_val;
+};
+
+// Path for cache data that can be deleted without impacting normal operation
+struct PathCacheDir : Config::Option {
+    static constexpr const char* name = "PathCacheDir";
+    using type = std::string;
+    static type default_value() { return default_val; }
+    static type default_val;
+};
+
 enum class CPUEngine {
     NARMive,
 };
@@ -96,7 +128,11 @@ struct EnableAudioEmulation : Config::BooleanOption<EnableAudioEmulation> {
 };
 
 
-struct Settings : Config::Options<CPUEngineTag,
+struct Settings : Config::Options<PathConfigDir,
+                                  PathImmutableDataDir,
+                                  PathDataDir,
+                                  PathCacheDir,
+                                  CPUEngineTag,
                                   InitialApplicationTag,
                                   BootToHomeMenu,
                                   UseNativeHID,

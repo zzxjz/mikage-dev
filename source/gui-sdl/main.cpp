@@ -29,6 +29,8 @@
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/none_of.hpp>
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/view/split.hpp>
 
 #include <chrono>
 #include <codecvt>
@@ -162,6 +164,30 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
+        // Prefer XDG_DATA_DIRS, then /usr/local/share, then /usr/share
+        auto data_dirs = std::string { getenv("XDG_DATA_DIRS") ? getenv("XDG_DATA_DIRS") : "/usr/local/share:/usr/share" };
+        for (auto data_dir : data_dirs | ranges::views::split(':')) {
+            auto candidate = ranges::to<std::string>(data_dir) + "/mikage";
+            if (std::filesystem::exists(candidate)) {
+                settings.set<Settings::PathImmutableDataDir>(std::move(candidate));
+                break;
+            }
+        }
+
+        auto fill_home_path = [](std::string path) {
+            auto home_dir = getenv("HOME");
+            if (!home_dir) {
+                throw std::runtime_error("Could not determine path to home directory. Please set the HOME environment variable");
+            }
+            if (!path.starts_with("/HOME~/")) {
+                return path;
+            }
+            return path.replace(0, 6, home_dir);
+        };
+        settings.set<Settings::PathConfigDir>(fill_home_path(settings.get<Settings::PathConfigDir>()));
+        settings.set<Settings::PathDataDir>(fill_home_path(settings.get<Settings::PathDataDir>()));
+        settings.set<Settings::PathCacheDir>(fill_home_path(settings.get<Settings::PathCacheDir>()));
+
         settings.set<Settings::DumpFrames>(vm["dump_frames"].as<bool>());
         settings.set<Settings::BootToHomeMenu>(vm["launch_menu"].as<bool>());
         if (enable_debugging) {
@@ -234,6 +260,8 @@ if (bootstrap_nand) // Experimental system bootstrapper
             throw std::runtime_error("Failed to read update partition RomFS");
         }
 
+        std::filesystem::path content_dir = settings.get<Settings::PathDataDir>() + "/data";
+
         for (uint32_t metadata_offset = 0; metadata_offset < level3_header.file_metadata_size;) {
             FileFormat::RomFSFileMetadata file_metadata;
             std::tie(result, bytes_read) = romfs->Read(file_context, lv3_offset + level3_header.file_metadata_offset + metadata_offset, sizeof(file_metadata), HLE::PXI::FS::FileBufferInHostMemory(file_metadata));
@@ -264,8 +292,7 @@ if (bootstrap_nand) // Experimental system bootstrapper
 
                 fprintf(stderr, "CIA header size: %#x\n", cia_header.header_size);
 
-                std::filesystem::path content_dir = "./data";
-                InstallCIA(std::move(content_dir), *frontend_logger, keydb, file_context, *cia_file);
+                InstallCIA(content_dir, *frontend_logger, keydb, file_context, *cia_file);
 
                 romfs = cia_file->ReleaseParentAndClose();
             }
@@ -274,23 +301,27 @@ if (bootstrap_nand) // Experimental system bootstrapper
             metadata_offset += (file_metadata.name_size + 3) & ~3;
         }
 
+        // Copy substitute titles
+        std::filesystem::copy(  settings.get<Settings::PathImmutableDataDir>() + "/nand/title", content_dir,
+                                std::filesystem::copy_options::skip_existing | std::filesystem::copy_options::recursive);
+
         // Initial system setup requires title 0004001000022400 to be present.
         // Normally, this is the Camera app, which isn't bundled in game update
         // partitions. Since the setup only reads the ExeFS icon that aren't
         // specific to the Camera app (likely to perform general checks), we
         // use the Download Play app as a drop-in replacement if needed.
-        if (!std::filesystem::exists("./data/00040010/00022400")) {
-            std::filesystem::copy("./data/00040010/00022100", "./data/00040010/00022400", std::filesystem::copy_options::recursive);
+        if (!std::filesystem::exists(content_dir / "00040010/00022400")) {
+            std::filesystem::copy(content_dir / "00040010/00022100", content_dir / "00040010/00022400", std::filesystem::copy_options::recursive);
         }
 
-        std::filesystem::create_directories("./data/ro/sys");
-        std::filesystem::create_directories("./data/rw/sys");
-        std::filesystem::create_directories("./data/twlp");
+        std::filesystem::create_directories(content_dir / "ro/sys");
+        std::filesystem::create_directories(content_dir / "rw/sys");
+        std::filesystem::create_directories(content_dir / "twlp");
 
         // Create dummy HWCAL0, required for cfg module to work without running initial system setup first
         char zero[128]{};
         {
-            std::ofstream hwcal0("./data/ro/sys/HWCAL0.dat");
+            std::ofstream hwcal0(content_dir / "ro/sys/HWCAL0.dat");
             const auto size = 2512;
             for (unsigned i = 0; i < size / sizeof(zero); ++i) {
                 hwcal0.write(zero, sizeof(zero));
@@ -301,7 +332,7 @@ if (bootstrap_nand) // Experimental system bootstrapper
         // Set up dummy rw/sys/SecureInfo_A with region EU
         // TODO: Let the user select the region
         {
-            std::ofstream info("./data/rw/sys/SecureInfo_A");
+            std::ofstream info(content_dir / "rw/sys/SecureInfo_A");
             info.write(zero, sizeof(zero));
             info.write(zero, sizeof(zero));
             char region = 2; // Europe

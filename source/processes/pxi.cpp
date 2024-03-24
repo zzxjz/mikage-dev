@@ -1,3 +1,4 @@
+#include "fs_common.hpp"
 #include "pxi.hpp"
 #include "cryptopp/aes.h"
 #include "cryptopp/modes.h"
@@ -114,7 +115,7 @@ FakePXI::FakePXI(FakeThread& thread)
     // Search for installed NAND titles
     // TODO: Move titles to ./data/title
     {
-        std::filesystem::path base_path = "./data/";
+        std::filesystem::path base_path = GetRootDataDirectory(os.settings);
 
         auto parse_title_id_part = [](const std::string& filename) -> std::optional<uint32_t> {
             // Expect an 8-digit zero-padded hexadecimal number
@@ -270,7 +271,7 @@ FileFormat::ExHeader GetExtendedHeader(Thread& thread, const Platform::FS::Progr
         uint32_t content_id = 0;
         const std::string filename = Meta::invoke([&] {
             std::stringstream filename;
-            filename << "data/";
+            filename << GetRootDataDirectory(thread.GetOS().settings).string();
             filename << std::hex << std::setw(8) << std::setfill('0') << (title_info.program_id >> 32);
             filename << "/";
             filename << std::hex << std::setw(8) << std::setfill('0') << (title_info.program_id & 0xFFFFFFFF);

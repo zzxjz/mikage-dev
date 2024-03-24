@@ -137,4 +137,8 @@ ValidatedHostPath PathValidator::ValidateAndGetSandboxedTreePath(const Utf8PathT
     return ValidatedHostPath { std::move(new_path) };
 }
 
+std::filesystem::path GetRootDataDirectory(Settings::Settings& settings) {
+    return std::filesystem::path { settings.get<Settings::PathDataDir>() } / "data/";
+}
+
 }

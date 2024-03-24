@@ -283,18 +283,13 @@ class ArchiveSystemSaveData final : public Archive {
     }
 
 public:
-    ArchiveSystemSaveData(uint32_t media_type) {
+    ArchiveSystemSaveData(Settings::Settings& settings, uint32_t media_type) {
         switch (media_type) {
         case 0:
-            base_path = "./data/data/";
-
             // TODO: This ID is actually generated from data in moveable.sed
             std::array<uint8_t, 0x10> id0;
             ranges::fill(id0, 0);
-            for (auto byte : id0)
-                base_path += fmt::format("{:02x}", byte);
-
-            base_path += "/sysdata/";
+            base_path = (GetRootDataDirectory(settings) / "data" / fmt::format("{:02x}", fmt::join(id0, "")) / "sysdata").string();
             break;
 
         default:
@@ -539,9 +534,10 @@ std::unique_ptr<File> OpenNCCHSubFile(Thread& thread, Platform::FS::ProgramInfo 
             return std::make_unique<DummyExeFSFile>();
         }
 
-        auto ncch_filename = fmt::format("./data/{:08x}/{:08x}/content/{:08x}.cxi",
-                                         program_info.program_id >> 32, program_info.program_id & 0xFFFFFFFF, content_id);
-        ncch = std::make_unique<HostFile>(ncch_filename, HostFile::Default);
+        auto ncch_filename =    GetRootDataDirectory(thread.GetOS().settings) /
+                                fmt::format("{:08x}/{:08x}/content/{:08x}.cxi",
+                                            program_info.program_id >> 32, program_info.program_id & 0xFFFFFFFF, content_id);
+        ncch = std::make_unique<HostFile>(ncch_filename.string(), HostFile::Default);
     } else if (gamecard && program_info.media_type == 2) {
         if (content_id > Meta::to_underlying(Loader::NCSDPartitionId::UpdateData)) {
             throw Mikage::Exceptions::Invalid("Invalid NCSD partition index {}", content_id);
@@ -873,6 +869,8 @@ static std::tuple<Result, uint64_t> OpenArchive(FakeThread& thread, Context& con
 
     thread.GetLogger()->info(binary_path);
 
+    auto& settings = thread.GetOS().settings;
+
     switch (archive_id) {
     case 0x567890b0:
     {
@@ -889,7 +887,7 @@ static std::tuple<Result, uint64_t> OpenArchive(FakeThread& thread, Context& con
         // System SaveData stored on NAND
         // TODO: Should we verify that not more than 4 bytes have been given?
         auto media_type = path.Read<uint32_t>(thread, 0);
-        auto archive = std::make_unique<ArchiveSystemSaveData>(media_type);
+        auto archive = std::make_unique<ArchiveSystemSaveData>(settings, media_type);
         auto archive_handle = context.next_archive_handle++;
         context.archives.emplace(std::make_pair(archive_handle, std::move(archive)));
         return std::make_tuple(RESULT_OK, archive_handle);

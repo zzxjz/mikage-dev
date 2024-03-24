@@ -95,4 +95,6 @@ protected:
     virtual std::filesystem::path GetSandboxHostRoot() const = 0;
 };
 
+std::filesystem::path GetRootDataDirectory(Settings::Settings& settings);
+
 } // namespace HLE

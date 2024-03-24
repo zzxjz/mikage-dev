@@ -2,6 +2,16 @@
 
 namespace Settings {
 
+// std::filesystem doesn't understand "~", so we replace the defaults with
+// "/HOME~" for safety. The frontend must replace this substring with the true
+// home folder path on startup.
+// If a buggy frontend doesn't do this, accessing "/HOME~" will reliably fail
+// instead of constructing a relative path.
+std::string PathConfigDir::default_val = "/HOME~/.config/mikage";
+std::string PathImmutableDataDir::default_val = "/usr/share/mikage";
+std::string PathDataDir::default_val = "/HOME~/.local/share/mikage";
+std::string PathCacheDir::default_val = "/HOME~/.cache/mikage";
+
 CPUEngine CPUEngineTag::default_val = CPUEngine::NARMive;
 
 }

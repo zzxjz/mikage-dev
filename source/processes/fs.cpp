@@ -50,14 +50,9 @@ using OS::ClientSession;
 using OS::ServerSession;
 using OS::Thread;
 
-static std::filesystem::path GetRootDataDirectory() {
-        return "./data/";
-}
-
 // TODO: Steel diver fails to boot if this directory doesn't exist - should make sure to create it automatically!
-static std::filesystem::path HostSdmcDirectory() {
-    auto path_str = "./data/sdmc";
-    return std::filesystem::path(path_str);
+static std::filesystem::path HostSdmcDirectory(Settings::Settings& settings) {
+    return GetRootDataDirectory(settings) / "sdmc/";
 }
 
 /**
@@ -100,13 +95,13 @@ class RomfsFile : public File {
     std::string filename;
 
 public:
-    RomfsFile(ProgramInfo& program_info) : program_info(program_info) {
+    RomfsFile(FSContext& context, ProgramInfo& program_info) : program_info(program_info) {
         if (program_info.media_type == 0) {
             // TODO: The content ID is hardcoded currently.
             uint32_t content_id = 0;
             filename = [&]() -> std::string {
                 std::stringstream filename;
-                filename << "data/";
+                filename << GetRootDataDirectory(context.settings).string() << "/";
                 filename << std::hex << std::setw(8) << std::setfill('0') << (program_info.program_id >> 32);
                 filename << "/";
                 filename << std::hex << std::setw(8) << std::setfill('0') << (program_info.program_id & 0xFFFFFFFF);
@@ -1061,7 +1056,7 @@ public:
     }
 
     static std::string GetBaseFileParentPath(FSContext& context, uint64_t saveid) {
-        return fmt::format("./data/data/{:016x}/sysdata/{:08x}", GetId0(context), saveid & 0xFFFFFFFF);
+        return (GetRootDataDirectory(context.settings) / fmt::format("data/{:016x}/sysdata/{:08x}", GetId0(context), saveid & 0xFFFFFFFF)).string();
     }
 
     static std::string GetBaseFilePath(FSContext& context, uint64_t saveid) {
@@ -1381,9 +1376,9 @@ public:
         uint32_t program_id_high = (program_info.program_id >> 32);
         uint32_t program_id_low = (program_info.program_id & 0xFFFFFFFF);
         if (program_info.media_type == 1 /* SD */) {
-            return fmt::format("data/sdmc/Nintendo 3DS/{:016x}/{:016x}/title/{:08x}/{:08x}/data", GetId0(context), GetId1(context), program_id_high, program_id_low);
+            return HostSdmcDirectory(context.settings) / fmt::format("Nintendo 3DS/{:016x}/{:016x}/title/{:08x}/{:08x}/data", GetId0(context), GetId1(context), program_id_high, program_id_low);
         } else if (program_info.media_type == 2 /* Gamecard */) {
-            return fmt::format("data/card_savedata/{:08x}/{:08x}/data", program_id_high, program_id_low);
+            return GetRootDataDirectory(context.settings) / fmt::format("card_savedata/{:08x}/{:08x}/data", program_id_high, program_id_low);
         } else {
             throw std::runtime_error("Unknown media type");
         }
@@ -1465,9 +1460,9 @@ private:
             uint32_t extdata_id_high = info.save_id >> 32;
 
             if (info.media_type == Platform::FS::MediaType::NAND) {
-                return fmt::format("data/data/{:016x}/extdata/{:08x}/{:08x}", GetId0(context), extdata_id_high, extdata_id_low);
+                return (GetRootDataDirectory(context.settings) / fmt::format("data/{:016x}/extdata/{:08x}/{:08x}", GetId0(context), extdata_id_high, extdata_id_low)).string();
             } else {
-                return (HostSdmcDirectory() / fmt::format("Nintendo 3DS/{:016x}/{:016x}/extdata/{:08x}/{:08x}", GetId0(context), GetId1(context), extdata_id_high, extdata_id_low)).string();
+                return (HostSdmcDirectory(context.settings) / fmt::format("Nintendo 3DS/{:016x}/{:016x}/extdata/{:08x}/{:08x}", GetId0(context), GetId1(context), extdata_id_high, extdata_id_low)).string();
             }
         });
     }
@@ -1876,7 +1871,8 @@ static auto BindMemFn(Func f, Class* c) {
 
 FakeFS::FakeFS(FakeThread& thread)
     : process(thread.GetParentProcess()),
-      logger(*thread.GetLogger()) {
+      logger(*thread.GetLogger()),
+      settings(process.GetOS().settings) {
 
     OS::Result result;
 
@@ -2548,7 +2544,7 @@ OpenArchive(FakeThread& thread, FSContext& context, ProcessId process_id, uint32
 
     case 0x00000009:
     {
-        auto archive = std::unique_ptr<Archive>(new ArchiveHostDir(HostSdmcDirectory()));
+        auto archive = std::unique_ptr<Archive>(new ArchiveHostDir(HostSdmcDirectory(context.settings)));
         return std::make_tuple(RESULT_OK, std::move(archive));
     }
 
@@ -2577,13 +2573,13 @@ OpenArchive(FakeThread& thread, FSContext& context, ProcessId process_id, uint32
 
     case 0x1234567d:
     {
-        auto archive = std::unique_ptr<Archive>(new ArchiveHostDir(GetRootDataDirectory() / "rw"));
+        auto archive = std::unique_ptr<Archive>(new ArchiveHostDir(GetRootDataDirectory(context.settings) / "rw"));
         return std::make_tuple(RESULT_OK, std::move(archive));
     }
 
     case 0x1234567e:
     {
-        auto archive = std::unique_ptr<Archive>(new ArchiveHostDir(GetRootDataDirectory() / "ro"));
+        auto archive = std::unique_ptr<Archive>(new ArchiveHostDir(GetRootDataDirectory(context.settings) / "ro"));
         return std::make_tuple(RESULT_OK, std::move(archive));
     }
 
@@ -2597,7 +2593,7 @@ OpenArchive(FakeThread& thread, FSContext& context, ProcessId process_id, uint32
     // TWL photo. Opened by mset during initial system setup
     case 0x567890ac:
     {
-        auto archive = std::unique_ptr<Archive>(new ArchiveHostDir(GetRootDataDirectory() / "twlp"));
+        auto archive = std::unique_ptr<Archive>(new ArchiveHostDir(GetRootDataDirectory(context.settings) / "twlp"));
         return std::make_tuple(RESULT_OK, std::move(archive));
     }
 

@@ -214,6 +214,7 @@ public: // TODO: Un-public-ize
     FakeProcess& process;
     spdlog::logger& logger;
     FileContext file_context { logger };
+    Settings::Settings& settings;
 
 public:
     FakeFS(FakeThread& thread);
