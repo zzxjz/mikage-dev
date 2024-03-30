@@ -1034,6 +1034,29 @@ static uint32_t HandlerSmulxx(CPUContext& ctx, ARM::ARMInstr instr) {
     return NextInstr(ctx);
 }
 
+// Unsigned Multiply Accumulate Accumulate Long
+static uint32_t HandlerUmaal(CPUContext& ctx, ARM::ARMInstr instr) {
+    if (!EvalCond(ctx, instr.cond))
+        return NextInstr(ctx);
+
+    // If either of the destination registers are PC, abort - this is unpredictable behavior!
+    if (instr.idx_rm == 15 || instr.idx_rs == 15 || instr.idx_rd == 15 || instr.idx_rn == 15)
+        return HandlerStubAnnotated(ctx, instr, __LINE__);
+
+    // If the destination registers are equal, abort - this is unpredictable behavior!
+    if (instr.idx_rd == instr.idx_rn)
+        return HandlerStubAnnotated(ctx, instr, __LINE__);
+
+    // First compute the result using the original register values, then write it back
+    uint64_t result = static_cast<uint64_t>(ctx.cpu.FetchReg(instr.idx_rs)) * static_cast<uint64_t>(ctx.cpu.FetchReg(instr.idx_rm));
+    result += ctx.cpu.reg[instr.idx_rd];
+    result += ctx.cpu.reg[instr.idx_rn];
+    ctx.cpu.reg[instr.idx_rd] = result & 0xFFFFFFFF;
+    ctx.cpu.reg[instr.idx_rn] = result >> 32;
+
+    return NextInstr(ctx);
+}
+
 // Signed Multiply Long
 static uint32_t HandlerSmull(CPUContext& ctx, ARM::ARMInstr instr) {
     if (!EvalCond(ctx, instr.cond))
@@ -1177,6 +1200,8 @@ static uint32_t HandlerUmlal(CPUContext& ctx, ARM::ARMInstr instr) {
 static uint32_t Handler00x0(InterpreterExecutionContext& ctx, ARM::ARMInstr instr) {
     if ((instr.raw & 0b1111'1110'0000'0000'0000'1111'0000) == 0b0000'0010'0000'0000'0000'1001'0000) {
         return HandlerMla(ctx, instr);
+    } else if ((instr.raw & 0b1111'1111'0000'0000'0000'1111'0000) == 0b0000'0100'0000'0000'0000'1001'0000) {
+        return HandlerUmaal(ctx, instr);
     } else if ((instr.raw & 0b1111'1110'0000'0000'0000'1111'0000) == 0b0000'1100'0000'0000'0000'1001'0000) {
         return HandlerSmull(ctx, instr);
     } else if ((instr.raw & 0b1111'1110'0000'0000'0000'1111'0000) == 0b0000'1110'0000'0000'0000'1001'0000) {
