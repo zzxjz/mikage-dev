@@ -291,6 +291,10 @@ static bool EvalCond(CPUContext& ctx, uint32_t cond) {
         return (ctx.cpu.cpsr.neg == 1);
     } else if (cond == 0x5) { // Positive or Zero
         return (ctx.cpu.cpsr.neg == 0);
+    } else if (cond == 0x6) { // Overflow
+        return (ctx.cpu.cpsr.overflow == 1);
+    } else if (cond == 0x7) { // No overflow
+        return (ctx.cpu.cpsr.overflow == 0);
     } else if (cond == 0x8) { // Greater (unsigned)
         return (ctx.cpu.cpsr.carry == 1 && ctx.cpu.cpsr.zero == 0);
     } else if (cond == 0x9) { // Less Equal (unsigned)
