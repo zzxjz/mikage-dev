@@ -5888,7 +5888,10 @@ try{
         if (terminate_process) {
             for (auto& other_process : process_handles) {
                 for (auto& handle : other_process.second->handle_table.table) {
-                    if (handle.second == parent_process && handle.first != Handle { 0xFFFF8001 }) {
+                    // The pm module holds references to every other process.
+                    // If any other modules still reference the process, then
+                    // that indicates a handle leak.
+                    if (handle.second == parent_process && handle.first != Handle { 0xFFFF8001 } && other_process.second->GetName() != "pm") {
                         fmt::print( "Process {} still holds a reference to {} through its handle {}\n",
                                     other_process.second->GetName(), parent_process->GetName(), HandlePrinter { *thread, handle.first });
                     }
