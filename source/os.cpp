@@ -5785,7 +5785,9 @@ void OS::ElapseTime(std::chrono::nanoseconds time) {
     // TODO NOW: This should also be checked for threads waiting for arbitration or events with timeout!!!
     for (auto thread_it = waiting_queue.begin(); thread_it != waiting_queue.end();) {
         auto thread = thread_it->lock();
-        if (thread->timeout_at <= GetTimeInNanoSeconds()) {
+        if (!thread) {
+            thread_it = waiting_queue.erase(thread_it);
+        } else if (thread->timeout_at <= GetTimeInNanoSeconds()) {
             thread->GetLogger()->info("{}Waking up thread after timeout", ThreadPrinter{*thread});
 
             // status==Sleeping corresponds to WaitSynchronizationN timing out... TODO: This is extremely ugly, clean this up instead :/
