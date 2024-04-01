@@ -1,5 +1,7 @@
 #include "thumb.hpp"
 
+#include <framework/exceptions.hpp>
+
 namespace ARM {
 
 DecodedThumbInstr DecodeThumb(ARM::ThumbInstr instr) {
@@ -400,8 +402,19 @@ DecodedThumbInstr DecodeThumb(ARM::ThumbInstr instr) {
     } else if (instr.opcode_upper8 == 0b0100'0101) {
         // CMP (3) - Compare
         ARM::ARMInstr arm_instr;
+        if (!instr.idx_rd_upperbit && !instr.idx_rm_upperbit) {
+            throw Mikage::Exceptions::Invalid("Unpredictable configuration");
+        }
+        if (instr.idx_rm_upperbit && instr.idx_rm == 7) {
+            throw Mikage::Exceptions::Invalid("Unpredictable configuration");
+        }
+        if (instr.idx_rd_upperbit && instr.idx_rd_low == 7) {
+            throw Mikage::Exceptions::NotImplemented("Cannot use PC for this instruction, yet");
+        }
         arm_instr.raw = (0b111000010101ul << 20)
+                        | (uint32_t { instr.idx_rd_upperbit } << 19)
                         | (uint32_t { instr.idx_rd_low } << 16)
+                        | (uint32_t { instr.idx_rm_upperbit } << 3)
                         | instr.idx_rm;
         return { arm_instr };
     } else if (instr.opcode_upper5 == 0b11000) {
