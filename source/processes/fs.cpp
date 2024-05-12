@@ -680,14 +680,17 @@ public:
     }
 
     Result DeleteFile(FakeThread&, FSContext&, uint32_t, uint32_t, IPC::StaticBuffer) override final {
-        throw std::runtime_error(fmt::format("TODO: Implement DeleteFile for archive {:#x}", archive_id));
+        return RESULT_OK;
     }
 
     Result DeleteDirectory(FakeThread&, FSContext&, uint32_t, bool recursive, uint32_t, IPC::StaticBuffer) override final {
         throw std::runtime_error(fmt::format("TODO: Implement OpenDirectory for archive {:#x}", archive_id));
     }
-};
 
+    Result RenameFile(FakeThread&, FakeFS&, uint32_t transaction, uint32_t source_path_type, IPC::StaticBuffer source_path, uint32_t target_path_type, IPC::StaticBuffer target_path) override final {
+        throw std::runtime_error(fmt::format("TODO: Implement RenameFile for archive {:#x}", archive_id));
+    }
+};
 
 /// Base class for archives that do not directly map to a PXIFS archive
 class ArchiveNonPXI : public Archive, PathValidator {
@@ -2563,6 +2566,12 @@ OpenArchive(FakeThread& thread, FSContext& context, ProcessId process_id, uint32
 
         bool is_shared = (archive_id == 0x7);
         auto archive = std::unique_ptr<Archive>(new ArchiveExtSaveData(thread, context, extdata_info, is_shared, false));
+        return std::make_tuple(RESULT_OK, std::move(archive));
+    }
+
+    case 0x12345678:
+    {
+        auto archive = std::unique_ptr<Archive>(new ArchiveDummy(thread, context, path_type, path, archive_id));
         return std::make_tuple(RESULT_OK, std::move(archive));
     }
 
