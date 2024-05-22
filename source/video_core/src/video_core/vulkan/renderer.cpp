@@ -104,17 +104,21 @@ Renderer::Renderer(Memory::PhysicalMemory& mem, std::shared_ptr<spdlog::logger> 
 
     {
         constexpr uint32_t num_tex_stages = 3;
-        std::array<vk::DescriptorPoolSize, descriptor_pool_size / (num_tex_stages + 1)> pool_sizes;
-        ranges::fill(pool_sizes, vk::DescriptorPoolSize {
+        constexpr uint32_t num_light_luts = 24;
+
+        std::array<vk::DescriptorPoolSize, 3> pool_sizes;
+        pool_sizes[0] = vk::DescriptorPoolSize {
             vk::DescriptorType::eCombinedImageSampler,
-            num_tex_stages // descriptor count (up to 3 texture stages)
-        });
-        for (int i = 150; i < pool_sizes.size(); ++i) {
-            pool_sizes[i] = vk::DescriptorPoolSize {
-                                vk::DescriptorType::eUniformBuffer,
-                                1 // descriptor count
-                            };
-        }
+            num_tex_stages * 10 // descriptor count (up to 3 texture stages)
+        };
+        pool_sizes[1] = vk::DescriptorPoolSize {
+            vk::DescriptorType::eUniformBuffer,
+            10
+        };
+        pool_sizes[2] = vk::DescriptorPoolSize {
+            vk::DescriptorType::eUniformTexelBuffer,
+            num_light_luts * 10
+        };
 
         vk::DescriptorPoolCreateInfo pool_info {
             vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, // NOTE: Technically, we could do without this, but it's easier to manage descriptor sets by freeing and reallocating them instead
