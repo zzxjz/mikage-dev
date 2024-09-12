@@ -13,7 +13,8 @@ class MikageConan(ConanFile):
         "sdl/2.0.20", # 2.0.18 fixed swapped X/Y buttons on Switch Pro Controller
         "range-v3/0.11.0",
         "catch2/2.13.7",
-        "glslang/11.7.0",
+        "glslang/1.3.268.0",
+        "spirv-tools/1.3.268.0",
         "tracy/0.9.1",
         "xxhash/0.8.0",
         "fmt/8.1.1",
