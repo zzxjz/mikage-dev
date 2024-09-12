@@ -685,7 +685,7 @@ static std::tuple<Result, uint64_t> OpenFile(FakeThread& thread, Context& contex
     // TODO: Respect flags & ~0x4 ... in particular, write/read-only!
     if (file) {// TODO: Remove this check! We only do this so that we don't need to implement archive 0x56789a0b0 properly...
     FileContext file_context { *thread.GetLogger() };
-    std::tie(result) = file->Open(file_context, { .create = flags & 0x4 });
+    std::tie(result) = file->Open(file_context, { .create = (flags & 0x4) != 0 });
     }
     if (result != RESULT_OK) {
         thread.GetLogger()->warn("Failed to open file");

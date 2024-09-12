@@ -9,6 +9,8 @@
 
 #include <framework/profiler.hpp>
 
+#include <thread>
+
 struct AudioFrontend;
 
 class NetworkConsole;

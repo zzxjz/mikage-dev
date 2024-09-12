@@ -48,3 +48,8 @@ if (Pistache_FOUND)
 endif()
 target_link_libraries(video_core PRIVATE Tracy::TracyClient)
 target_link_libraries(video_core PRIVATE xxHash::xxhash)
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    # Required for g_vulkan_queue_mutex
+    target_link_options(video_core PRIVATE "-undefined;dynamic_lookup")
+endif()

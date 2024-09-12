@@ -3,7 +3,10 @@
 
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/generate_n.hpp>
+#include <range/v3/algorithm/search.hpp>
 #include <range/v3/iterator/insert_iterators.hpp>
+
+#include <codecvt>
 
 namespace HLE {
 
@@ -127,7 +130,8 @@ ValidatedHostPath PathValidator::ValidateAndGetSandboxedTreePath(const Utf8PathT
     auto new_path = sandbox_root;
     new_path += utf8_path;
     new_path = new_path.lexically_normal();
-    if (new_path.begin() != std::search(new_path.begin(), new_path.end(), sandbox_root.begin(), sandbox_root.end())) {
+    auto new_path_str = new_path.string();
+    if (ranges::begin(new_path_str) != ranges::search(new_path_str, sandbox_root.string()).begin()) {
         throw std::runtime_error(fmt::format("Requested path leaked out of sandbox: Got path {}, expected a child of {}", new_path, sandbox_root));
     }
     return ValidatedHostPath { std::move(new_path) };
