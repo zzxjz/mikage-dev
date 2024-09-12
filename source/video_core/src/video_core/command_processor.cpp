@@ -165,8 +165,21 @@ static inline void WritePicaReg(Context& context, u32 id, u32 value, u32 mask, C
     DebugUtils::OnPicaRegWrite(id, registers[id]);
 
     switch(id) {
+        case 0x1: case 0x2: case 0x3: case 0x4: case 0x5: case 0x6: case 0x7:
+        case 0x8: case 0x9: case 0xa: case 0xb: case 0xc: case 0xd: case 0xe: case 0xf:
+        case 0x11: case 0x12: case 0x13: case 0x14: case 0x15: case 0x16: case 0x17:
+        case 0x18: case 0x19: case 0x1a: case 0x1b: case 0x1c: case 0x1d: case 0x1e: case 0x1f:
+        case 0x21: case 0x22: case 0x23: case 0x24: case 0x25: case 0x26: case 0x27:
+        case 0x28: case 0x29: case 0x2a: case 0x2b: case 0x2c: case 0x2d: case 0x2e: case 0x2f:
+        case 0x31: case 0x32: case 0x33:            case 0x35: case 0x36: case 0x37:
+        case 0x38: case 0x39: case 0x3a: case 0x3b: case 0x3c: case 0x3d: case 0x3e: case 0x3f:
+            throw Mikage::Exceptions::Invalid("Invalid command list entry?");
+
         // Trigger IRQ
         case PICA_REG_INDEX(trigger_irq):
+            if (value != 0x12345678) {
+                throw Mikage::Exceptions::NotImplemented("Unexpected interrupt token");
+            }
             context.os->NotifyInterrupt(0x2d);
             if (next_command && (next_command + 1)) {
                 // NOTE: This is generally placed at the very end of the
@@ -176,6 +189,14 @@ static inline void WritePicaReg(Context& context, u32 id, u32 value, u32 mask, C
                 //       Mansion 2). However if even more commands follow, this
                 //       likely indicates a bug.
                 throw Mikage::Exceptions::Invalid("End of command list was indicated before it was actually reached");
+            }
+            break;
+
+        case 0x20:
+            // This actually sets the reference value for trigger_irq.
+            // No other value has been observed for this, so it's not implemented.
+            if (value != 0x12345678) {
+                throw Mikage::Exceptions::NotImplemented("Unexpected reference interrupt token");
             }
             break;
 
