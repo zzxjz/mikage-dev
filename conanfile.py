@@ -7,7 +7,7 @@ class MikageConan(ConanFile):
 
     requires = [
         #"boost/1.79.0",
-        "boost/1.80.0",
+        "boost/1.84.0",
         "spdlog/1.10.0",
         "cryptopp/8.5.0",
         "sdl/2.0.20", # 2.0.18 fixed swapped X/Y buttons on Switch Pro Controller

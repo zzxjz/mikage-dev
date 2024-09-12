@@ -39,7 +39,7 @@ add_definitions(-DBOOST_FILESYSTEM_NO_DEPRECATED -DBOOST_COROUTINES_NO_DEPRECATI
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -fstrict-aliasing -Wpedantic")
 
 set(BOOST_COMPONENTS context filesystem iostreams program_options thread)
-find_package(Boost 1.80.0 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+find_package(Boost 1.84.0 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 
 find_package(fmt REQUIRED)
 
