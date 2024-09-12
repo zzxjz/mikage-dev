@@ -85,8 +85,11 @@ if(NOT ANDROID)
     endif()
 endif ()
 
-# TODO: find_package-ify
-add_subdirectory(externals/teakra)
+include(FetchContent)
+FetchContent_Declare(teakra
+  GIT_REPOSITORY https://github.com/mikage-emu/teakra.git
+  GIT_TAG        f99ce8b0c0400b6e20a566ca0a3483ffb4b4e95c)
+FetchContent_MakeAvailable(teakra)
 set_target_properties(teakra_c PROPERTIES EXCLUDE_FROM_ALL 1)
 
 add_subdirectory(source)
