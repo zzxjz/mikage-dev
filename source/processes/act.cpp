@@ -10,7 +10,7 @@ struct FakeACT {
     FakeACT(FakeThread& thread);
 };
 
-static auto ACTUCommandHandler(FakeThread& thread, FakeACT&, std::string_view service_name, const IPC::CommandHeader& header) {
+static auto ACTCommandHandler(FakeThread& thread, FakeACT&, std::string_view service_name, const IPC::CommandHeader& header) {
     using Initialize = IPC::IPCCommand<0x1>::add_uint32::add_uint32::add_process_id::add_handle<IPC::HandleType::SharedMemoryBlock>::response;
 
     using GetAccountDataBlock = IPC::IPCCommand<0x6>::add_uint32::add_uint32::add_uint32::add_buffer_mapping_write::response;
@@ -56,10 +56,11 @@ static auto ACTUCommandHandler(FakeThread& thread, FakeACT&, std::string_view se
 static void ACTUThread(FakeACT& context, FakeThread& thread) {
     ServiceHelper service;
     service.Append(ServiceUtil::SetupService(thread, "act:u", 2));
+    service.Append(ServiceUtil::SetupService(thread, "act:a", 2));
 
     auto InvokeCommandHandler = [&](FakeThread& thread, uint32_t /*signalled_handle_index*/) {
         Platform::IPC::CommandHeader header = { thread.ReadTLS(0x80) };
-        return ACTUCommandHandler(thread, context, "act:u", header);
+        return ACTCommandHandler(thread, context, "act:a/u", header);
     };
 
     service.Run(thread, std::move(InvokeCommandHandler));
