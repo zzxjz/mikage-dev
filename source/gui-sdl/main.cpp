@@ -90,6 +90,7 @@ inline std::ostream& operator<<(std::ostream& os, ShaderEngine engine) {
     case ShaderEngine::GLSL:
         return (os << "glsl");
     }
+    return os;
 }
 
 }

@@ -53,3 +53,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     # Required for g_vulkan_queue_mutex
     target_link_options(video_core PRIVATE "-undefined;dynamic_lookup")
 endif()
+
+# Selectively disable Werror to cover false positives
+target_compile_options(video_core PRIVATE -Wno-error=return-type)

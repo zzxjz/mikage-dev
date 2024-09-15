@@ -24,6 +24,9 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+add_compile_options(-Werror=implicit-fallthrough)
+add_compile_options(-Werror=return-type)
+
 # Prefer Conan-provided packages over system ones
 set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
 
