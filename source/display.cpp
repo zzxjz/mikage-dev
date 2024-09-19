@@ -274,7 +274,7 @@ EmuDisplay::EmuDisplay(spdlog::logger& logger, vk::PhysicalDevice physical_devic
                                 "\n"
                                 "void main() {\n"
                                 // NOTE: Alpha channel is set to 1.0 here because the Qt frontend requires this for overlay effects (blur, ...) to work
-                                "  out_color = vec4(texture(sampler0, -gl_FragCoord.yx * vec2(" + std::to_string(1.0 / height) + ", " + std::to_string(1.0 / width) + ")).rgb, 1.0);\n"
+                                "  out_color = vec4(texture(sampler0, -gl_FragCoord.yx * vec2(" + fmt::format("{}", 1.0 / height) + ", " + fmt::format("{}", 1.0 / width) + ")).rgb, 1.0);\n"
                                 "}\n";
             auto shader_spv = CompileShader(EShLangFragment, code.c_str(), "main");
 

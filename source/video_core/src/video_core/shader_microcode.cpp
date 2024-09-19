@@ -1485,7 +1485,7 @@ uvec4 i[4];
         glsl += "vec4 non_ieee_mul(vec4 a, vec4 b) { return vec4(non_ieee_mul(a.x, b.x), non_ieee_mul(a.y, b.y), non_ieee_mul(a.z, b.z), non_ieee_mul(a.w, b.w)); } \n\n";
     } else {
         // Fallback: convert INF to FLT32_MAX before multiplication
-        auto max_float = std::to_string(std::numeric_limits<float>::max());
+        auto max_float = fmt::format("{}", std::numeric_limits<float>::max());
         glsl += "float non_ieee_mul(float a, float b) { return min(a, " + max_float + ") * min(b, " + max_float + "); } \n\n";
         glsl += "vec2 non_ieee_mul(vec2 a, vec2 b) { return min(a, vec2(" + max_float + ")) * min(b, vec2(" + max_float + ")); } \n\n";
         glsl += "vec3 non_ieee_mul(vec3 a, vec3 b) { return min(a, vec3(" + max_float + ")) * min(b, vec3(" + max_float + ")); } \n\n";
