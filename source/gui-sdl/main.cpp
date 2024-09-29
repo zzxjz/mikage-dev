@@ -58,59 +58,6 @@ void TeakraAudioCallback(std::array<int16_t, 2> samples) {
 //    g_samples.push_back(std::pair{samples[0], samples[1]});
 }
 
-
-#ifdef __ANDROID__ // TODO: Consider enabling this elsewhere, too!
-PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXTptr;
-PFN_vkDestroyDebugReportCallbackEXT vkDestroyDebugReportCallbackEXTptr;
-
-extern "C" {
-VkResult vkCreateDebugReportCallbackEXT(VkInstance_T* a, VkDebugReportCallbackCreateInfoEXT const* b, VkAllocationCallbacks const* c, VkDebugReportCallbackEXT_T** d) {
-return vkCreateDebugReportCallbackEXTptr(a, b, c, d);
-}
-
-void vkDestroyDebugReportCallbackEXT(VkInstance_T* a, VkDebugReportCallbackEXT_T* b, VkAllocationCallbacks const* c) {
-vkDestroyDebugReportCallbackEXTptr(a, b, c);
-}
-}
-
-static VKAPI_ATTR VkBool32 VKAPI_CALL DebugReportCallback(
-                                   VkDebugReportFlagsEXT msgFlags,
-                                   VkDebugReportObjectTypeEXT objType,
-                                   uint64_t srcObject, size_t location,
-                                   int32_t msgCode, const char * pLayerPrefix,
-                                   const char * pMsg, void * pUserData )
-{
-   if (msgFlags & VK_DEBUG_REPORT_ERROR_BIT_EXT) {
-       __android_log_print(ANDROID_LOG_ERROR,
-                           "MikageValidation",
-                           "ERROR: [%s] Code %i : %s",
-                           pLayerPrefix, msgCode, pMsg);
-   } else if (msgFlags & VK_DEBUG_REPORT_WARNING_BIT_EXT) {
-       __android_log_print(ANDROID_LOG_WARN,
-                           "MikageValidation",
-                           "WARNING: [%s] Code %i : %s",
-                           pLayerPrefix, msgCode, pMsg);
-   } else if (msgFlags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT) {
-       __android_log_print(ANDROID_LOG_WARN,
-                           "MikageValidation",
-                           "PERFORMANCE WARNING: [%s] Code %i : %s",
-                           pLayerPrefix, msgCode, pMsg);
-   } else if (msgFlags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT) {
-       __android_log_print(ANDROID_LOG_INFO,
-                           "MikageValidation", "INFO: [%s] Code %i : %s",
-                           pLayerPrefix, msgCode, pMsg);
-   } else if (msgFlags & VK_DEBUG_REPORT_DEBUG_BIT_EXT) {
-       __android_log_print(ANDROID_LOG_VERBOSE,
-                           "MikageValidation", "DEBUG: [%s] Code %i : %s",
-                           pLayerPrefix, msgCode, pMsg);
-   }
-
-   // Returning false tells the layer not to stop when the event occurs, so
-   // they see the same behavior with and without validation layers enabled.
-   return VK_FALSE;
-}
-#endif
-
 static volatile int wait_debugger = 0;
 
 namespace Settings {
@@ -557,20 +504,7 @@ if (bootstrap_nand) // Experimental system bootstrapper
 
     auto display = std::make_unique<SDLVulkanDisplay>(frontend_logger, *window, layouts);
 
-#ifdef __ANDROID__
-//#if 0 // TODO: Re-enable!
-    {
-        auto instance = *display->instance;
 
-        vkCreateDebugReportCallbackEXTptr = (PFN_vkCreateDebugReportCallbackEXT)
-            vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
-        vkDestroyDebugReportCallbackEXTptr = (PFN_vkDestroyDebugReportCallbackEXT)
-            vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
-    }
-
-    vk::DebugReportCallbackCreateInfoEXT callback_info { ~vk::DebugReportFlagsEXT{}, DebugReportCallback };
-    auto cb = display->instance->createDebugReportCallbackEXTUnique(callback_info);
-#endif
 
     std::thread emuthread;
     std::exception_ptr emuthread_exception = nullptr;

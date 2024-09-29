@@ -1,12 +1,11 @@
 #include "jit.hpp"
 
-#ifndef __ANDROID__
-#include <pistache/router.h>
-#endif
-
-#include <range/v3/view/enumerate.hpp>
 
 #include <fmt/format.h>
+
+#include <pistache/router.h>
+
+#include <range/v3/view/enumerate.hpp>
 
 using namespace Pistache;
 
@@ -32,7 +31,6 @@ void JitService::UnregisterContext(HLE::OS::ProcessId pid, HLE::OS::ThreadId tid
     contexts.erase(JitId { pid, tid });
 }
 
-#ifndef __ANDROID__
 void JitService::doOptions(const Rest::Request&, Http::ResponseWriter response) {
     response.headers().add<Http::Header::AccessControlAllowOrigin>("*");
     response.headers().add<Http::Header::AccessControlAllowHeaders>("user-agent");
@@ -85,10 +83,8 @@ void JitService::doJitBlocks(const Rest::Request& request, Http::ResponseWriter 
 
     response.send(Http::Code::Ok, body + "]");
 }
-#endif
 
 void JitService::RegisterRoutes(Rest::Router& router) {
-#ifndef __ANDROID__
     using namespace Rest;
 
     Routes::Get(router, "/jit/:id/blocks", Routes::bind(&JitService::doJitBlocks, this));
@@ -97,7 +93,6 @@ void JitService::RegisterRoutes(Rest::Router& router) {
     Routes::Options(router, "/jit/*/*", Routes::bind(&JitService::doOptions, this));
     Routes::Options(router, "/jit/*", Routes::bind(&JitService::doOptions, this));
     Routes::Options(router, "/jit", Routes::bind(&JitService::doOptions, this));
-#endif
 }
 
 template<>

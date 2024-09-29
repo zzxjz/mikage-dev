@@ -96,11 +96,7 @@ namespace Pica {
 namespace Vulkan {
 
 // TODO: Detect at runtime
-#ifndef __ANDROID__
 const bool requires_32bit_depth = true; /* True if device does not support 24-bit depth and instead needs 32-bit */
-#else
-const bool requires_32bit_depth = false;
-#endif
 const vk::Format internal_depth_format = requires_32bit_depth ? vk::Format::eD32SfloatS8Uint : vk::Format::eD24UnormS8Uint;
 
 void ResourceReadHandler::OnRead(PAddr read_addr, uint32_t read_size) {
@@ -902,12 +898,7 @@ void ResourceManager::RefreshStagedMemory(
                 case GenericImageFormat::RGBA8:
                  {
                     auto value = Memory::Read<uint32_t>(source_memory, x * nibbles_per_pixel / 2 + y * stride);
-#ifdef __ANDROID__
-                    // TODO: Uhm.. gotta figure out which order to put the components in here
                     value = ((value & 0xff) << 24) | ((value & 0xff00) << 8) | ((value & 0xff0000) >> 8) | (value >> 24);
-#else
-                    value = ((value & 0xff) << 24) | ((value & 0xff00) << 8) | ((value & 0xff0000) >> 8) | (value >> 24);
-#endif
                     memcpy(fb_data_ptr, &value, sizeof(value));
                     fb_data_ptr += sizeof(value);
                     break;

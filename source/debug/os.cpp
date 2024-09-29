@@ -1,9 +1,7 @@
 #include "os.hpp"
 #include <os.hpp>
 
-#ifndef __ANDROID__
 #include <pistache/router.h>
-#endif
 
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/iterator/insert_iterators.hpp>
@@ -40,7 +38,6 @@ void OSService::Shutdown() {
     processes.clear();
 }
 
-#ifndef __ANDROID__
 using namespace Pistache;
 
 static void doOptions(const Pistache::Rest::Request&, Pistache::Http::ResponseWriter response) {
@@ -137,10 +134,8 @@ static void doProcessThreadList(OSService& service, const Pistache::Rest::Reques
     }
     response.send(Http::Code::Ok, body + "]");
 }
-#endif
 
 void OSService::RegisterRoutes(Pistache::Rest::Router& router) {
-#ifndef __ANDROID__
     using namespace Rest;
 
     Routes::Get(router, "/os/processes",
@@ -158,7 +153,6 @@ void OSService::RegisterRoutes(Pistache::Rest::Router& router) {
 //    Routes::Options(router, "/os", Routes::bind(doOptions));
     Routes::Options(router, "/os/*", Routes::bind(doOptions));
     Routes::Options(router, "/os/*/*/*", Routes::bind(doOptions));
-#endif
 }
 
 template<>

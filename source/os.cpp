@@ -5715,14 +5715,12 @@ static uint64_t timestamp = 0; // TODO
         }
 
     // If 3D is enabled, push a frame for the right-eye image, too
-#ifndef __ANDROID__ // Android ignores the right-eye frame
         if (fb_format & (1 << 5)) {
             auto data_addr = Memory::ReadLegacy<uint32_t>(mem, gpu_base + 0x494 + fb_select * 4);
             auto& frame = display.PrepareImage(EmuDisplay::DataStreamId::TopScreenRightEye, ++timestamp);
             renderer.ProduceFrame(display, frame, mem, EmuDisplay::DataStreamId::TopScreenRightEye, data_addr, fb_stride, format);
             display.PushImage(EmuDisplay::DataStreamId::TopScreenRightEye, frame, timestamp);
         }
-#endif
     }
 
     if (Memory::ReadLegacy<uint32_t>(mem, gpu_base + 0x574) & 1) {

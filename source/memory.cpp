@@ -1,6 +1,4 @@
-#ifndef __ANDROID__
 #include <cryptopp/sha.h>
-#endif
 #include "display.hpp"
 #include "input.hpp"
 #include "memory.h"
@@ -239,7 +237,6 @@ struct GPU : MemoryAccessHandler {
     }
 };
 
-#ifndef __ANDROID__
 // Child of CryptoPP::SHA256, the sole purpose of which is to publish some protected methods of SHA256
 struct MySHA256 : CryptoPP::SHA256 {
     using Parent = IteratedHashWithStaticTransform<CryptoPP::word32, CryptoPP::BigEndian, 64, 32, CryptoPP::SHA256, 32, true>;
@@ -284,7 +281,6 @@ struct CryptoPPPrivateDataMembersWorkaround {
 
 template struct CryptoPPPrivateDataMembersWorkaround<ByteCountHiMember, &MySHA256::IteratedHashBase::m_countHi>;
 template struct CryptoPPPrivateDataMembersWorkaround<ByteCountLoMember, &MySHA256::IteratedHashBase::m_countLo>;
-#endif
 
 struct HASH : MemoryAccessHandler {
     std::shared_ptr<spdlog::logger> logger;
@@ -296,7 +292,6 @@ struct HASH : MemoryAccessHandler {
 
     }
 
-#ifndef __ANDROID__
     uint32_t Read32(uint32_t offset) {
 //         static int iter = 0;
 
@@ -447,7 +442,6 @@ struct HASH : MemoryAccessHandler {
         }
         logger->warn("{}-bit write to HASH register {:#010x} {:#x}<- {:#010x}", sizeof(T) * 8, base, offset, value);
     }
-#endif // ANDROID
 };
 
 struct GPIO : MemoryAccessHandler {

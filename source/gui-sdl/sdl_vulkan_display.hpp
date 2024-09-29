@@ -113,12 +113,6 @@ public: // ... TODO
     }
 
     void ProcessDataSource(::EmuDisplay::Frame& frame, ::EmuDisplay::DataStreamId stream_id) {
-#ifdef __ANDROID__
-        // Right-eye frames are always ignored on Android
-        if (input->stream_id == ::Display::DataStreamId::TopScreenRightEye) {
-            return;
-        }
-#endif
 //        {
 //            auto& active_image = active_images[static_cast<size_t>(input->stream_id)];
 //            if (active_image && active_image != input) {
@@ -287,11 +281,7 @@ public:
         SDL_GetWindowSize(&window, &window_width, &window_height);
         logger->info("Swap chain size: {}x{}", window_width, window_height);
         vk::Extent2D swapchain_size = { static_cast<uint32_t>(window_width), static_cast<uint32_t>(window_height) };
-#ifdef __ANDROID__
-        vk::Format swapchain_format = vk::Format::eR8G8B8A8Unorm;
-#else
         vk::Format swapchain_format = vk::Format::eB8G8R8A8Unorm; // TODO: Don't hardcode. Check against surface_formats instead
-#endif
 
         swapchain = std::invoke([&]() {
             vk::SwapchainCreateInfoKHR info { vk::SwapchainCreateFlagBitsKHR { },
@@ -456,12 +446,6 @@ public:
 //            message.resize(message.size() - 3); // Drop last " / "
 //            logger->info(message);
 //            std::cerr << message << std::endl;
-
-//#ifdef __ANDROID__
-//       __android_log_print(ANDROID_LOG_ERROR,
-//                           "MikageValidation",
-//                           "%s", message.c_str());
-//#endif
 
 //            start = std::chrono::high_resolution_clock::now();
 //        }

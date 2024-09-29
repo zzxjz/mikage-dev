@@ -84,7 +84,6 @@ EmuSession::EmuSession( LogManager& log_manager, Settings::Settings& settings,
     setup->mem.InjectDependency(input);
 
     // TODO: Check if we can enable this on Android, too
-#ifndef __ANDROID__
     network_console = std::make_unique<NetworkConsole>(12347);
     console_thread = std::thread { [os_module=std::move(os_module), &console=*network_console]() mutable {
         console.RegisterModule("os", std::move(os_module));
@@ -102,7 +101,6 @@ EmuSession::EmuSession( LogManager& log_manager, Settings::Settings& settings,
         }
     });
     debug_server_thread.detach();
-#endif
 
 #endif
 }
