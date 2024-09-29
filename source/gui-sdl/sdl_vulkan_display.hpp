@@ -338,8 +338,14 @@ public:
         device->waitForFences({*current_frame->render_finished_fence}, true, std::numeric_limits<uint64_t>::max());
 
         auto [result, next_image_index] = device->acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *current_frame->image_available_semaphore, vk::Fence { });
-        if (result != vk::Result::eSuccess) {
+        if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR) {
             throw std::runtime_error(fmt::format("Unexpected error in vkAcquireNextImageKHR: {}", vk::to_string(result)));
+        }
+        if (result == vk::Result::eSuboptimalKHR) {
+            device->waitIdle();
+            CreateSwapchain();
+            BeginFrame();
+            return;
         }
 
         if (!current_frame->render_finished_fence_awaitable.IsReady(*device)) { // Reset CPUAwaitable
@@ -462,7 +468,11 @@ public:
 
         vk::PresentInfoKHR info { 1, &*current_frame->render_finished_semaphore, 1, &*swapchain, &current_frame->image_index };
         auto result = present_queue.presentKHR(info);
-        if (result != vk::Result::eSuccess) {
+        if (result == vk::Result::eSuboptimalKHR) {
+            // TODO: Other drivers might actually return other error codes on resize
+            device->waitIdle();
+            CreateSwapchain();
+        } else if (result != vk::Result::eSuccess) {
             // TODO: On VK_ERROR_OUT_OF_DATE_KHR, we should recreate the swap chain!
             logger->error("Error in vkQueuePresentKHR: {}", vk::to_string(result));
             throw std::runtime_error("Error in vkQueuePresentKHR");
