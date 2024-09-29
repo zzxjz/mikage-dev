@@ -3,7 +3,7 @@
 #include <glslang/Public/ResourceLimits.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
 
-#include <cstring>
+#include <fmt/format.h>
 
 const struct InitGlslang {
     InitGlslang() {
@@ -22,18 +22,24 @@ std::vector<uint32_t> CompileShader(EShLanguage kind, const char* code, const ch
     shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_2);
     shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
 
-    shader.parse(GetDefaultResources(), 100, false, EShMsgDefault);
-
-    // TODO: Print shader.getInfoLog()
+    if (!shader.parse(GetDefaultResources(), 100, ECoreProfile, false, false, EShMsgDefault)) {
+        fmt::print(stderr, "Failed to compile {} shader:\n{}\n", glslang::StageName(kind), code);
+        throw std::runtime_error(fmt::format(   "Failed to compile {} shader: {}\n",
+                                                glslang::StageName(kind), shader.getInfoLog()));
+    }
 
     glslang::TProgram program;
     program.addShader(&shader);
-    program.link(EShMsgDefault);
-    // TODO: Print program.getInfoLog()
+    if (!program.link(EShMsgDefault)) {
+        fmt::print(stderr, "Failed to link {} shader:\n{}\n", glslang::StageName(kind), code);
+        throw std::runtime_error(fmt::format(   "Failed to link {} shader: {}\n",
+                                                glslang::StageName(kind), program.getInfoLog()));
+    }
 
-    // TODO: Set up flags: optimization, validation, ...
     glslang::TIntermediate& intermediate = *program.getIntermediate(kind);
     std::vector<uint32_t> result;
-    glslang::GlslangToSpv(intermediate, result);
+    glslang::SpvOptions spv_options;
+    spv_options.disableOptimizer = false;
+    glslang::GlslangToSpv(intermediate, result, &spv_options);
     return result;
 }
