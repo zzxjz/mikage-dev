@@ -9,6 +9,8 @@
 
 #include <framework/profiler.hpp>
 
+struct AudioFrontend;
+
 class NetworkConsole;
 
 namespace Loader {
@@ -36,7 +38,7 @@ struct EmuSession {
     std::thread console_thread;
 
     EmuSession( LogManager&, Settings::Settings&,
-                VulkanDeviceManager&, EmuDisplay::EmuDisplay&,
+                AudioFrontend&, VulkanDeviceManager&, EmuDisplay::EmuDisplay&,
                 const KeyDatabase&, std::unique_ptr<Loader::GameCard>);
 
     void Run();

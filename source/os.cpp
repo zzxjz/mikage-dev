@@ -1942,8 +1942,11 @@ const uint32_t num_firm_modules = 5;
 //       See MakeNewProcessId for details.
 //       TODO: Instead of this workaround, we should just not launch
 //             FakeDebugProcess before the FIRM modules.
-OS::OS(Profiler::Profiler& profiler, Settings::Settings& settings, Interpreter::Setup& setup_, LogManager& log_manager, PicaContext& pica, EmuDisplay::EmuDisplay& display)
-    : next_pid(num_firm_modules),
+OS::OS( Profiler::Profiler& profiler, Settings::Settings& settings,
+        Interpreter::Setup& setup_, LogManager& log_manager,
+        AudioFrontend& audio, PicaContext& pica, EmuDisplay::EmuDisplay& display)
+    : hypervisor(settings, audio),
+      next_pid(num_firm_modules),
       internal_memory_owner(std::make_shared<MemoryBlockOwner>()),
       memory_regions {
         MemoryManager { ApplicationMemoryStart(settings), ApplicationMemorySize(settings) },
@@ -2020,8 +2023,8 @@ OS::~OS() {
     debug_process.reset(); // TODO: Not needed
 }
 
-std::pair<std::unique_ptr<OS>, std::unique_ptr<::ConsoleModule>> OS::Create(Settings::Settings& settings, Interpreter::Setup& setup, LogManager& log_manager, Profiler::Profiler& profiler, PicaContext& pica, EmuDisplay::EmuDisplay& display) {
-    auto&& os = std::make_unique<OS>(profiler, settings, setup, log_manager, pica, display);
+std::pair<std::unique_ptr<OS>, std::unique_ptr<::ConsoleModule>> OS::Create(Settings::Settings& settings, Interpreter::Setup& setup, LogManager& log_manager, Profiler::Profiler& profiler, AudioFrontend& audio, PicaContext& pica, EmuDisplay::EmuDisplay& display) {
+    auto&& os = std::make_unique<OS>(profiler, settings, setup, log_manager, audio, pica, display);
     auto&& console_module = std::unique_ptr<::ConsoleModule>(new ConsoleModule(*os));
     return std::make_pair(std::move(os), std::move(console_module));
 }

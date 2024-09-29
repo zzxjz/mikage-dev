@@ -1563,7 +1563,8 @@ public: // TODO: privatize this again!
     [[deprecated]] MemoryManager& memory_base() { return memory_regions[2]; }
     MemoryManager& FindMemoryRegionContaining(uint32_t paddr, uint32_t size);
 
-    OS(Profiler::Profiler&, Settings::Settings&, Interpreter::Setup&, LogManager&, PicaContext&, EmuDisplay::EmuDisplay&);
+    OS( Profiler::Profiler&, Settings::Settings&, Interpreter::Setup&,
+        LogManager&, AudioFrontend&, PicaContext&, EmuDisplay::EmuDisplay&);
     ~OS();
 
     Profiler::Profiler& profiler;
@@ -1869,7 +1870,7 @@ public:
      */
     SVCEmptyFuture SVCAddThread(std::shared_ptr<Thread> thread);
 
-    static std::pair<std::unique_ptr<OS>, std::unique_ptr<ConsoleModule>> Create(Settings::Settings& settings, Interpreter::Setup& setup, LogManager& log_manager, Profiler::Profiler&, PicaContext&, EmuDisplay::EmuDisplay&);
+    static std::pair<std::unique_ptr<OS>, std::unique_ptr<ConsoleModule>> Create(Settings::Settings& settings, Interpreter::Setup& setup, LogManager& log_manager, Profiler::Profiler&, AudioFrontend&, PicaContext&, EmuDisplay::EmuDisplay&);
 
     /**
      * Initialized the OS, spawning all service processes along the way.

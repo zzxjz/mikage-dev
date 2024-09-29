@@ -1,6 +1,7 @@
 #include "dsp_hpv.hpp"
 #include "os_hypervisor_private.hpp"
 #include "os.hpp"
+#include <ui/audio_frontend.hpp>
 
 #include <platform/dsp.hpp>
 
@@ -26,6 +27,10 @@ struct DspService : SessionToPort {
     } pipe_read_state;
 
     DspService(RefCounted<Port> port_, DSPContext& context_) : SessionToPort(port_, context_) {
+    }
+
+    DSPContext& GetContext() {
+        return static_cast<DSPContext&>(context);
     }
 
     void OnRequest(Hypervisor& hypervisor, Thread& thread, Handle session) override {

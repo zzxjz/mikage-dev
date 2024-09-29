@@ -1,3 +1,5 @@
+#include "audio_frontend_sdl.hpp"
+
 #include <ui/key_database.hpp>
 
 #include "platform/file_formats/cia.hpp"
@@ -361,6 +363,7 @@ if (bootstrap_nand) // Experimental system bootstrapper
 //exit(1);
     g_samples.reserve(32768);
 
+    auto audio_frontend = std::make_unique<SDLAudioFrontend>();
 #ifndef DISABLE_AUDIO
                 static std::ofstream ofs("samples.raw", std::ios_base::binary);
                 static std::ofstream ofs2("samples2.raw", std::ios_base::binary);
@@ -531,7 +534,7 @@ if (bootstrap_nand) // Experimental system bootstrapper
         }
 
     auto gamecard = LoadGameCard(*frontend_logger, settings);
-    session = std::make_unique<EmuSession>(*log_manager, settings, *display, *display, keydb, std::move(gamecard));
+    session = std::make_unique<EmuSession>(*log_manager, settings, *audio_frontend, *display, *display, keydb, std::move(gamecard));
 
     emuthread = std::thread {
         [&emuthread_exception, &session]() {

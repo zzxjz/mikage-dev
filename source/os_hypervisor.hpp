@@ -1,8 +1,13 @@
 #pragma once
 
 #include <functional>
-#include <map>
 #include <memory>
+
+struct AudioFrontend;
+
+namespace Settings {
+struct Settings;
+}
 
 namespace HLE {
 
@@ -32,7 +37,7 @@ class Hypervisor {
     std::unique_ptr<HPV::State> state;
 
 public:
-    Hypervisor();
+    Hypervisor(Settings::Settings&, AudioFrontend&);
     ~Hypervisor();
 
     // "thread" refers to the target (i.e. server) thread

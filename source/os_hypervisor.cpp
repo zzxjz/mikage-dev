@@ -79,7 +79,9 @@ struct State {
 
 }
 
-Hypervisor::Hypervisor() : state(new HPV::State) {
+Hypervisor::Hypervisor(Settings::Settings& settings, AudioFrontend& audio_frontend) : state(new HPV::State) {
+    state->dsp_context.settings = &settings;
+    state->dsp_context.frontend = &audio_frontend;
 }
 
 Hypervisor::~Hypervisor() = default;

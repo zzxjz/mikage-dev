@@ -10,6 +10,8 @@
 #include "framework/logging.hpp"
 #include "framework/meta_tools.hpp"
 
+#include <ui/audio_frontend.hpp>
+
 #include <spdlog/spdlog.h>
 
 #include <boost/endian/arithmetic.hpp>
@@ -842,6 +844,8 @@ static bool just_reset = false;
 struct DSPMMIO : MemoryAccessHandler {
     std::shared_ptr<spdlog::logger> logger;
 
+    AudioFrontend* frontend = nullptr;
+
     DSPConfig config {};
     DSPStatus status { DSPStatus{}.write_fifo_empty()(true) };
 
@@ -1032,7 +1036,7 @@ struct DSPMMIO : MemoryAccessHandler {
                 static std::ofstream ofs2("samples2.raw", std::ios_base::binary);
                 static std::vector<uint16_t> data;
                 static std::vector<uint16_t> data2;
-                static auto audio_callback = [](std::array<int16_t, 2> samples) {
+                auto audio_callback = [this](std::array<int16_t, 2> samples) {
                     data.push_back(samples[0]);
                     data2.push_back(samples[1]);
                     if (data.size() == 0x10000) {
@@ -1044,10 +1048,9 @@ struct DSPMMIO : MemoryAccessHandler {
                         data2.clear();
                     }
 
-                    TeakraAudioCallback(samples);
+                    frontend->OutputSamples(samples);
                 };
                 g_teakra->SetAudioCallback(audio_callback);
-//                g_teakra->SetAudioCallback(TeakraAudioCallback);
 
                 // NOTE: These don't seem to be needed (only for unaligned memory accesses?)
                 static Teakra::AHBMCallback ahbm;
@@ -1263,6 +1266,10 @@ PhysicalMemory::PhysicalMemory(LogManager& log_manager)
              IO_DSP2(std::make_unique<DSPMMIO>(log_manager, "IO_DSP_2")),
              MPCorePrivateBus(std::make_unique<MPCorePrivate>())) {
     g_mem = this;
+}
+
+void PhysicalMemory::InjectDependency(AudioFrontend& frontend) {
+    std::get<IO_DSP1>(memory).handler->frontend = &frontend;
 }
 
 void PhysicalMemory::InjectDependency(PicaContext& context) {

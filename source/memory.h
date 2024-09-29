@@ -15,6 +15,8 @@
 #include <memory>
 #include <vector>
 
+struct AudioFrontend;
+
 class LogManager;
 
 class PicaContext;
@@ -343,7 +345,8 @@ struct PhysicalMemory {
      */
     PhysicalMemory(LogManager& log_manager);
 
-    void InjectDependency(PicaContext& pica);
+    void InjectDependency(AudioFrontend&);
+    void InjectDependency(PicaContext&);
     void InjectDependency(InputSource&);
 };
 

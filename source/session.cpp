@@ -63,16 +63,19 @@ std::unique_ptr<Loader::GameCard> LoadGameCard(spdlog::logger& logger, Settings:
 }
 
 EmuSession::EmuSession( LogManager& log_manager, Settings::Settings& settings,
-                        VulkanDeviceManager& vulkan_device_manager, EmuDisplay::EmuDisplay& display,
-                        const KeyDatabase& keydb, std::unique_ptr<Loader::GameCard> gamecard)
+                        AudioFrontend& audio, VulkanDeviceManager& vulkan_device_manager,
+                        EmuDisplay::EmuDisplay& display, const KeyDatabase& keydb,
+                        std::unique_ptr<Loader::GameCard> gamecard)
         : setup(std::make_shared<Interpreter::Setup>(log_manager, keydb, std::move(gamecard), profiler, debug_server)),
         pica {  log_manager.RegisterLogger("Pica"), debug_server, settings, setup->mem, profiler,
                 vulkan_device_manager.physical_device, *vulkan_device_manager.device,
                 vulkan_device_manager.graphics_queue_index, vulkan_device_manager.graphics_queue } {
     setup->cpus[0].cpu.cpsr.mode = ARM::InternalProcessorMode::User;
 
+    setup->mem.InjectDependency(audio);
+
     std::unique_ptr<ConsoleModule> os_module;
-    std::tie(setup->os, os_module) = HLE::OS::OS::Create(settings, *setup, log_manager, profiler, pica, display);
+    std::tie(setup->os, os_module) = HLE::OS::OS::Create(settings, *setup, log_manager, profiler, audio, pica, display);
     for (auto& cpu : setup->cpus)
         cpu.os = setup->os.get();
     setup->os->Initialize();
