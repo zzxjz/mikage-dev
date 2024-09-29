@@ -3539,9 +3539,27 @@ void OS::TranslateIPCMessage(Thread& source, Thread& dest, bool is_reply) {
 
             auto base_physical_chunk = ResolveVirtualAddrWithSize(source.GetParentProcess(), buffer_address);
             if (!base_physical_chunk) {
-                source.GetLogger()->error("{}Failed to resolve virtual address {:#x}",
-                                            ThreadPrinter{source}, buffer_address);
-                SVCBreak(source, BreakReason::Panic);
+                if (buffer_size == 0) {
+                    // NOTE: Some games use zero-length buffers. Naively we
+                    //       could just not map any buffer in the target
+                    //       process in that case, but services may expect to
+                    //       be able to forward the buffers to other services.
+                    //       A notable example of this is Super Mario 3D Land,
+                    //       which sends zero-byte file read requests to FS,
+                    //       which in turn forwards those requests to PXI.
+                    //       Usually, games provide valid buffer addresses
+                    //       despite the zero buffer size. However for am:net's
+                    //       ImportCertificates, a typical usage pattern is
+                    //       zero-size with a nullptr.
+                    // TODO: Review if LLE FS avoids PXI calls for null buffers.
+                    //       If it does, HLE FS should copy this behavior so
+                    //       that an error can be raised here instead.
+                    base_physical_chunk.emplace(0, 0);
+                } else {
+                    throw Mikage::Exceptions::NotImplemented(
+                            "{}Failed to resolve virtual address {:#x}",
+                            ThreadPrinter{source}, buffer_address);
+                }
             }
             if (base_physical_chunk->second >= buffer_size) {
                 // Create one single PXI entry covering the entire buffer
@@ -3609,30 +3627,26 @@ void OS::TranslateIPCMessage(Thread& source, Thread& dest, bool is_reply) {
         case IPC::TranslationDescriptor::Type::MapReadWrite:
         {
             // NOTE: Mapped buffers may be of size zero, in which case we
-            //       don't actually map any memory - so this lookup may be
-            //       expected to fail in that case
-            // TODO: If the mapped buffer size is zero, chances are the kernel
-            //       is still expected to map at least one page in the target
-            //       process. This needs to be tested!
-            VAddr buffer_source_addr = source.ReadTLS(tls_offset);
-            auto buffer_paddr_opt = source.GetParentProcess().ResolveVirtualAddr(buffer_source_addr);
-            if (!buffer_paddr_opt) {
+            //       don't actually map any memory.
+            // TODO: Test if the kernel should still map at least one page in
+            //       the target process in this case.
+            const VAddr buffer_source_addr = source.ReadTLS(tls_offset);
+
+            if (!descriptor.map_buffer.size) {
                 tls_offset += 4;
-                break; // TODO: Remove. Needed to open HOME Menu in system version 9.0.0 after updating from 4.5.0
-                throw std::runtime_error(fmt::format("Failed to resolve IPC buffer address {:#x}", buffer_source_addr));
+                break;
             }
 
-            // NOTE: Some games use zero-length buffers. Naively we could just
-            //       not map any buffer in the target process in that case,
-            //       but services may expect to be able to forward the buffers
-            //       to other services. Hence we always map at least the first
-            //       byte of the input buffer.
-            //       A notable example of this is Super Mario 3D Land, which
-            //       sends zero-byte file read requests to FS, which in turn
-            //       forwards those requests to PXI.
-            //       Note that all games this was observed in do provide valid
-            //       buffer addresses despite the zero buffer size.
-            /*const */uint32_t mapped_buffer_size = std::max<uint32_t>(1, descriptor.map_buffer.size);
+            // Extend buffer size to partially covered pages
+            // NOTE: Two alignment considerations are made here:
+            //       1. The offset of the dest pointer into the first page must match the source pointer
+            //       2. The mapped data must end on a page boundary.
+            //          This is particularly important for the sub-page
+            //          allocations done in HLE modules, due to which e.g.
+            //          APT::Wrap fails to properly forward its buffers to PS
+            //          if they're allocated within the same virtual memory page
+            //          Side TODO: Stop sub-page allocating in HLE modules
+            uint32_t mapped_buffer_size = ((buffer_source_addr + descriptor.map_buffer.size + 0xfff) & ~0xfff) - (buffer_source_addr & ~0xfff);
 
             if (is_reply) {
                 // Unmap buffer from the source process. It seems that the
@@ -3654,7 +3668,7 @@ void OS::TranslateIPCMessage(Thread& source, Thread& dest, bool is_reply) {
                     source.GetLogger()->info("{}{}", data, (descriptor.map_buffer.size > max_size) ? "..." : "");
                 }
 
-                bool success = source.GetParentProcess().UnmapVirtualMemory(buffer_source_addr, mapped_buffer_size);
+                bool success = source.GetParentProcess().UnmapVirtualMemory(buffer_source_addr & ~0xfff, mapped_buffer_size);
                 if (!success) {
                     throw std::runtime_error("Couldn't unmap IPC buffer memory");
                 }
@@ -3665,10 +3679,6 @@ void OS::TranslateIPCMessage(Thread& source, Thread& dest, bool is_reply) {
                 // Map buffer in the target process
                 // TODO: Setup proper permissions
                 // TODO: Page-align the mappings??
-
-                // Align buffer size up to the nearest page. This is needed since e.g. APT::Wrap fails to properly forward its buffers to PS if they're allocated within the same virtual memory page
-                // TODO: Stop sub-page allocating instead.
-                mapped_buffer_size = (mapped_buffer_size + 0xfff) & ~0xfff;
 
                 auto buffer_dest_vaddr_opt = dest.GetParentProcess().FindAvailableVirtualMemory(mapped_buffer_size, 0x10000000, 0x20000000);
                 if (!buffer_dest_vaddr_opt) {
@@ -3681,13 +3691,24 @@ void OS::TranslateIPCMessage(Thread& source, Thread& dest, bool is_reply) {
                                                     ? MemoryPermissions::Write
                                                     : MemoryPermissions::ReadWrite;
 
-                // TODO: Currently, we can have mappings like "VAddr [0x10000000;0x100036c0] to PAddr [0x245cc9a0;0x245d0060]", but we really shouldn't change alignment of data like this...
-                bool success = dest.GetParentProcess().MapVirtualMemory(*buffer_paddr_opt, mapped_buffer_size, *buffer_dest_vaddr_opt, permissions);
-                if (!success) {
-                    throw std::runtime_error("Couldn't map virtual memory for IPC buffer");
+                for (uint32_t bytes_mapped = 0; bytes_mapped < mapped_buffer_size;) {
+                    auto buffer_paddr_pair_opt = ResolveVirtualAddrWithSize(source.GetParentProcess(), ((buffer_source_addr + bytes_mapped) & ~0xfff));
+                    if (!buffer_paddr_pair_opt) {
+                        throw std::runtime_error(fmt::format("Failed to resolve IPC buffer address {:#x}", buffer_source_addr));
+                    }
+                    uint32_t bytes_to_map = std::min<uint32_t>(buffer_paddr_pair_opt->second, mapped_buffer_size - bytes_mapped);
+
+                    // TODO: Currently, we can have mappings like "VAddr [0x10000000;0x100036c0] to PAddr [0x245cc9a0;0x245d0060]", but we really shouldn't change alignment of data like this...
+                    bool success = dest.GetParentProcess().MapVirtualMemory(buffer_paddr_pair_opt->first, bytes_to_map, *buffer_dest_vaddr_opt + bytes_mapped, permissions);
+                    if (!success) {
+                        throw std::runtime_error("Couldn't map virtual memory for IPC buffer");
+                    }
+
+                    bytes_mapped += bytes_to_map;
                 }
 
-                dest.WriteTLS(tls_offset, *buffer_dest_vaddr_opt);
+                // Write target address. Care must be taken to preserve the page offset into the source data
+                dest.WriteTLS(tls_offset, *buffer_dest_vaddr_opt + (buffer_source_addr & 0xfff));
 
                 source.GetLogger()->info(   "{}Mapping buffer for input data at {:#010x} in thread {}:",
                                             ThreadPrinter{source}, buffer_source_addr, ThreadPrinter{dest});
