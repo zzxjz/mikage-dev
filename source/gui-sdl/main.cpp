@@ -53,13 +53,6 @@ std::mutex g_vulkan_queue_mutex; // TODO: Turn into a proper interface
 
 namespace bpo = boost::program_options;
 
-static std::vector<std::pair<int16_t, int16_t>> g_samples;
-static std::mutex g_sample_mutex;
-void TeakraAudioCallback(std::array<int16_t, 2> samples) {
-    std::unique_lock lock(g_sample_mutex);
-//    g_samples.push_back(std::pair{samples[0], samples[1]});
-}
-
 static volatile int wait_debugger = 0;
 
 namespace Settings {
@@ -347,102 +340,8 @@ if (bootstrap_nand) // Experimental system bootstrapper
         frontend_logger->critical("Failed to initialize SDL: {}", SDL_GetError());
         return 1;
     }
-#ifdef TRACY_ENABLE
-// SDL's "SDLAudioP2" thread creates unintelligible back traces in profiles for some reason
-#define DISABLE_AUDIO
-#error "TEST"
-#endif
-#define DISABLE_AUDIO // TODO: Drop.
-#ifndef DISABLE_AUDIO
-    if (SDL_Init(SDL_INIT_AUDIO) != 0) {
-        frontend_logger->critical("Failed s to initialize SDL: {}", SDL_GetError());
-        return 1;
-    }
-#endif
-
-//exit(1);
-    g_samples.reserve(32768);
 
     auto audio_frontend = std::make_unique<SDLAudioFrontend>();
-#ifndef DISABLE_AUDIO
-                static std::ofstream ofs("samples.raw", std::ios_base::binary);
-                static std::ofstream ofs2("samples2.raw", std::ios_base::binary);
-                static std::vector<uint16_t> data;
-                static std::vector<uint16_t> data2;
-    SDL_AudioCallback abc = [](void*, uint8_t* stream, int num_bytes) {
-        static uint32_t index = 0;
-
-        std::unique_lock lock(g_sample_mutex);
-        if (g_samples.empty()) {
-            g_samples.push_back(std::pair<int16_t, int16_t>(0, 0));
-        }
-
-// TODO: Also handle the emulator running too fast!
-        auto num_ready_samples = std::min<uint32_t>(g_samples.size(), num_bytes / 4);
-
-//fprintf(stderr, "Copying %d/%d samples\n", num_ready_samples, num_bytes / 4);
-
-        if (num_ready_samples > 1) {
-            g_samples.erase(g_samples.begin());
-            --num_ready_samples;
-        }
-
-        for (uint32_t sample = 0; sample < num_bytes / 4; ++sample) {
-            auto& data = g_samples[sample * num_ready_samples / (num_bytes / 4)];
-            memcpy(stream + sample * 4, &data, sizeof(data));
-            index++;
-
-        }
-//        for (uint32_t sample = 0; sample < num_ready_samples; ++sample) {
-//            auto& data = g_samples[sample];
-//            ofs.write((char*)&data, sizeof(data) / 2);
-//            static int index =0;
-//            index++;
-//            if ((index % 1000) == 0) {
-//                ofs.flush();
-//            }
-//        }
-
-        // Always leave at least 1 sample for interpolation
-        g_samples.erase(g_samples.begin(), g_samples.begin() + (num_ready_samples - 1));
-
-//        for (uint32_t sample = 0; sample < (unsigned)num_bytes / 4; ++sample) {
-//            int16_t data = sinf(440.f * 6.28 * index / 32728.f/* 44100.f*/) * 16384.f * (0.1f + (1.0 + sinf(index / 100000.f)) / 2);
-//            memcpy(stream + sample * 4, &data, sizeof(data));
-//            data = sinf(440.f * 6.28 * index / 32728.f/* 44100.f*/) * 16384.f * (1.1f - (1.0 + sinf(index / 100000.f)) / 2);
-//            memcpy(stream + sample * 4 + sizeof(data), &data, sizeof(data));
-//            ++index;
-//        }
-    };
-
-    SDL_AudioSpec desired_audio_spec {
-        .freq = 32728,
-        .format = AUDIO_S16LSB,
-        .channels = 2,
-        .silence = 0, // filled by SDL
-        .samples = 4096, // TODO?
-        .padding = 0,
-        .size = 0, // filled by SDL
-        // NOTE: Consider using SDL_QueueAudio as an alternative
-        .callback = abc,
-        .userdata = nullptr
-    } ;
-    SDL_AudioSpec audio_spec;
-//        SDL_AUDIO_DRIVER_DISK
-//SDL_AUDIO_DRIVER_DISK;
-    fmt::print(stderr, "Opening SDL audio device\n");
-    auto device_id = SDL_OpenAudioDevice(nullptr, false, &desired_audio_spec, &audio_spec, 0 /* no allowed changes; let SDL auto-convert */);
-    if (device_id == 0) {
-        throw std::runtime_error("Failed to open SDL audio device");
-    }
-
-    fmt::print(stderr, "Opened SDL audio device with {} samples\n", audio_spec.freq);
-//    exit(1);
-
-    // TODO: Setup audio callback
-
-    SDL_PauseAudioDevice(device_id, false);
-#endif
 
     // TODO: For some reason, SDL picks RGB565 as the surface format for us... these hints don't help, either :(
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);

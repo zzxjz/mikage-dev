@@ -25,8 +25,6 @@
 #include <fstream>
 #include <optional>
 
-void TeakraAudioCallback(std::array<int16_t, 2> samples);
-
 Teakra::Teakra* g_teakra = nullptr; // TODO: Remove
 Memory::PhysicalMemory* g_mem = nullptr; // TODO: Remove
 bool g_dsp_running = false; // TODO: Remove
