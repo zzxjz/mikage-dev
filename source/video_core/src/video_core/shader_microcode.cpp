@@ -836,6 +836,29 @@ static std::string FunctionName(ShaderCodeOffset entry) {
 // TODO: Un-global-ify
 static std::map<int, std::string> reg_index_map;
 
+static std::string WriteCondition(Instruction::FlowControlType instr) {
+    auto component = [&](int i) {
+        auto ref = (i == 0) ? instr.refx.Value() : instr.refy.Value();
+        return fmt::format("{}cond.{}", (ref ? "" : "!"), "xy"[i]);
+    };
+
+    using Op = Instruction::FlowControlType::Op;
+
+    switch (instr.op) {
+    case Op::Or:
+        return component(0) + " || " + component(1);
+
+    case Op::And:
+        return component(0) + " && " + component(1);
+
+    case Op::JustX:
+        return component(0);
+
+    case Op::JustY:
+        return component(1);
+    }
+}
+
 static std::string TranslateToGLSL(Context& context, Instruction instr) {
     // TODO: Turn these into proper functions instead
     static auto select_input_register = [](SourceRegister reg, std::optional<unsigned> address_register_index) {
@@ -1187,11 +1210,17 @@ static std::string TranslateToGLSL(Context& context, Instruction instr) {
         case OpCode::Id::CALL:
         case OpCode::Id::CALLC:
         case OpCode::Id::CALLU:
+        {
+            std::string prefix;
+            if (instr.opcode.Value() == OpCode::Id::CALLC) {
+                prefix = fmt::format("if ({}) ", WriteCondition(instr.flow_control));
+            }
             if (instr.opcode.Value() != OpCode::Id::CALLU || context.shader_uniforms.b[instr.flow_control.bool_uniform_id]) {
-                return FunctionName(ShaderCodeOffset { instr.flow_control.dest_offset }) + "();";
+                return prefix + FunctionName(ShaderCodeOffset { instr.flow_control.dest_offset }) + "();";
             } else {
                 return "// Conditional call (statically omitted)";
             }
+        }
 
         case OpCode::Id::IFU:
         case OpCode::Id::IFC:
@@ -1210,29 +1239,6 @@ static std::string TranslateToGLSL(Context& context, Instruction instr) {
         default:
             return "// Unknown";
         }
-    }
-}
-
-static std::string WriteCondition(Instruction::FlowControlType instr) {
-    auto component = [&](int i) {
-        auto ref = (i == 0) ? instr.refx.Value() : instr.refy.Value();
-        return fmt::format("{}cond.{}", (ref ? "" : "!"), "xy"[i]);
-    };
-
-    using Op = Instruction::FlowControlType::Op;
-
-    switch (instr.op) {
-    case Op::Or:
-        return component(0) + " || " + component(1);
-
-    case Op::And:
-        return component(0) + " && " + component(1);
-
-    case Op::JustX:
-        return component(0);
-
-    case Op::JustY:
-        return component(1);
     }
 }
 
