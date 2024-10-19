@@ -349,8 +349,8 @@ std::string GenerateFragmentShader(Context& context) {
         using AlphaModifier = Regs::TevStageConfig::AlphaModifier;
         using Operation = Regs::TevStageConfig::Operation;
 
-        const bool is_nop_stage_rgb = (tev_stage.color_modifier1 == ColorModifier::SourceColor && tev_stage.color_op == Operation::Replace);
-        const bool is_nop_stage_a = (tev_stage.alpha_modifier1 == AlphaModifier::SourceAlpha && tev_stage.alpha_op == Operation::Replace);
+        const bool is_nop_stage_rgb = (tev_stage.color_modifier1() == ColorModifier::SourceColor && tev_stage.color_op() == Operation::Replace);
+        const bool is_nop_stage_a = (tev_stage.alpha_modifier1() == AlphaModifier::SourceAlpha && tev_stage.alpha_op() == Operation::Replace);
 
         std::string tev_stage_str = "tev" + std::to_string(tev_stage_index) + "_";
 
@@ -518,9 +518,9 @@ std::string GenerateFragmentShader(Context& context) {
             }
         };
 
-        code += "uvec3 " + tev_stage_str + "rgb_in1 = " + GetModifiedColor(tev_stage.color_modifier1, GetSourceColor(tev_stage.color_source1).c_str()) + ";\n";
-        code += "uvec3 " + tev_stage_str + "rgb_in2 = " + GetModifiedColor(tev_stage.color_modifier2, GetSourceColor(tev_stage.color_source2).c_str()) + ";\n";
-        code += "uvec3 " + tev_stage_str + "rgb_in3 = " + GetModifiedColor(tev_stage.color_modifier3, GetSourceColor(tev_stage.color_source3).c_str()) + ";\n";
+        code += "uvec3 " + tev_stage_str + "rgb_in1 = " + GetModifiedColor(tev_stage.color_modifier1(), GetSourceColor(tev_stage.color_source1()).c_str()) + ";\n";
+        code += "uvec3 " + tev_stage_str + "rgb_in2 = " + GetModifiedColor(tev_stage.color_modifier2(), GetSourceColor(tev_stage.color_source2()).c_str()) + ";\n";
+        code += "uvec3 " + tev_stage_str + "rgb_in3 = " + GetModifiedColor(tev_stage.color_modifier3(), GetSourceColor(tev_stage.color_source3()).c_str()) + ";\n";
 
         auto CombineRGB = [&](Operation op) -> std::string {
             switch (op) {
@@ -582,9 +582,9 @@ std::string GenerateFragmentShader(Context& context) {
             }
         };
 
-        code += "uint " + tev_stage_str + "a_in1 = " + GetModifiedAlpha(tev_stage.alpha_modifier1, GetSourceAlpha(tev_stage.alpha_source1).c_str()) + ";\n";
-        code += "uint " + tev_stage_str + "a_in2 = " + GetModifiedAlpha(tev_stage.alpha_modifier2, GetSourceAlpha(tev_stage.alpha_source2).c_str()) + ";\n";
-        code += "uint " + tev_stage_str + "a_in3 = " + GetModifiedAlpha(tev_stage.alpha_modifier3, GetSourceAlpha(tev_stage.alpha_source3).c_str()) + ";\n";
+        code += "uint " + tev_stage_str + "a_in1 = " + GetModifiedAlpha(tev_stage.alpha_modifier1(), GetSourceAlpha(tev_stage.alpha_source1()).c_str()) + ";\n";
+        code += "uint " + tev_stage_str + "a_in2 = " + GetModifiedAlpha(tev_stage.alpha_modifier2(), GetSourceAlpha(tev_stage.alpha_source2()).c_str()) + ";\n";
+        code += "uint " + tev_stage_str + "a_in3 = " + GetModifiedAlpha(tev_stage.alpha_modifier3(), GetSourceAlpha(tev_stage.alpha_source3()).c_str()) + ";\n";
 
         auto CombineA = [&](Operation op) -> std::string {
             switch (op) {
@@ -628,9 +628,9 @@ std::string GenerateFragmentShader(Context& context) {
             }
         };
 
-        code += "uvec3 " + tev_stage_str + "out_rgb = " + CombineRGB(tev_stage.color_op) + ";\n";
+        code += "uvec3 " + tev_stage_str + "out_rgb = " + CombineRGB(tev_stage.color_op()) + ";\n";
 
-        code += "uint " + tev_stage_str + "out_a = " + CombineA(tev_stage.alpha_op) + ";\n";
+        code += "uint " + tev_stage_str + "out_a = " + CombineA(tev_stage.alpha_op()) + ";\n";
 
         // TODO: Move to pica.h
         if (tev_stage_index > 0) {
@@ -663,8 +663,8 @@ std::string GenerateFragmentShader(Context& context) {
     }
 
     auto& alpha_test = context.registers.output_merger.alpha_test;
-    if (alpha_test.enable && alpha_test.function != AlphaTest::Function::Always) {
-        const char* op = std::invoke([func=alpha_test.function.Value()]() {
+    if (alpha_test.enable() && alpha_test.function() != AlphaTest::Function::Always) {
+        const char* op = std::invoke([func=alpha_test.function()()]() {
             // Inverse mapping for finding failing pixels rather than passing ones
             switch (func) {
             case AlphaTest::Function::NotEqual:
@@ -680,7 +680,7 @@ std::string GenerateFragmentShader(Context& context) {
                 throw std::runtime_error(fmt::format("Unknown alpha test function {:#x}", static_cast<uint32_t>(func)));
             }
         });
-        code += fmt::format("if (combiner_output.a {} {})\n", op, alpha_test.reference.Value());
+        code += fmt::format("if (combiner_output.a {} {})\n", op, alpha_test.reference()());
         code += "  discard;\n";
     }
 

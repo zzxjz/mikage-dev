@@ -547,7 +547,7 @@ static void ProcessTriangleInternal(Context& context,
                         return texture_color[2];
 
                     case Source::Constant:
-                        return {tev_stage.const_r, tev_stage.const_g, tev_stage.const_b, tev_stage.const_a};
+                        return {tev_stage.const_r()(), tev_stage.const_g()(), tev_stage.const_b()(), tev_stage.const_a()()};
 
                     case Source::CombinerBuffer:
                         return combiner_buffer;
@@ -731,19 +731,19 @@ static void ProcessTriangleInternal(Context& context,
                 //       combiner_output.rgb(), but instead store it in a temporary variable until
                 //       alpha combining has been done.
                 Math::Vec3<u8> color_result[3] = {
-                    GetColorModifier(tev_stage.color_modifier1, GetCombinerSource(tev_stage.color_source1)),
-                    GetColorModifier(tev_stage.color_modifier2, GetCombinerSource(tev_stage.color_source2)),
-                    GetColorModifier(tev_stage.color_modifier3, GetCombinerSource(tev_stage.color_source3))
+                    GetColorModifier(tev_stage.color_modifier1(), GetCombinerSource(tev_stage.color_source1())),
+                    GetColorModifier(tev_stage.color_modifier2(), GetCombinerSource(tev_stage.color_source2())),
+                    GetColorModifier(tev_stage.color_modifier3(), GetCombinerSource(tev_stage.color_source3()))
                 };
-                auto color_output = ColorCombine(tev_stage.color_op, color_result);
+                auto color_output = ColorCombine(tev_stage.color_op(), color_result);
 
                 // alpha combiner
                 std::array<u8,3> alpha_result = {
-                    GetAlphaModifier(tev_stage.alpha_modifier1, GetCombinerSource(tev_stage.alpha_source1)),
-                    GetAlphaModifier(tev_stage.alpha_modifier2, GetCombinerSource(tev_stage.alpha_source2)),
-                    GetAlphaModifier(tev_stage.alpha_modifier3, GetCombinerSource(tev_stage.alpha_source3))
+                    GetAlphaModifier(tev_stage.alpha_modifier1(), GetCombinerSource(tev_stage.alpha_source1())),
+                    GetAlphaModifier(tev_stage.alpha_modifier2(), GetCombinerSource(tev_stage.alpha_source2())),
+                    GetAlphaModifier(tev_stage.alpha_modifier3(), GetCombinerSource(tev_stage.alpha_source3()))
                 };
-                auto alpha_output = AlphaCombine(tev_stage.alpha_op, alpha_result);
+                auto alpha_output = AlphaCombine(tev_stage.alpha_op(), alpha_result);
 
                 // TODO: Move to pica.h
                 if (tev_stage_index > 0) {
@@ -770,8 +770,8 @@ static void ProcessTriangleInternal(Context& context,
                 combiner_output.a() = static_cast<uint8_t>(std::min<unsigned>(255, alpha_output * tev_stage.GetMultiplierA()));
             }
 
-            if (registers.output_merger.alpha_test.enable && registers.output_merger.alpha_test.function != AlphaTest::Function::Always) {
-                if (AlphaTestFailed(combiner_output.a(), registers.output_merger.alpha_test.reference, registers.output_merger.alpha_test.function)) {
+            if (registers.output_merger.alpha_test.enable() && registers.output_merger.alpha_test.function() != AlphaTest::Function::Always) {
+                if (AlphaTestFailed(combiner_output.a(), registers.output_merger.alpha_test.reference(), registers.output_merger.alpha_test.function())) {
                     continue;
                 }
             }

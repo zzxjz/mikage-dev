@@ -1173,7 +1173,7 @@ void Renderer::FinalizeTriangleBatchInternal(Context& context, const VertexShade
 
             const auto tev_stages = context.registers.GetTevStages();
             for (auto& tev_stage : tev_stages) {
-                for (uint32_t val : { tev_stage.const_r.Value(), tev_stage.const_g.Value(), tev_stage.const_b.Value(), tev_stage.const_a.Value() }) {
+                for (uint32_t val : { tev_stage.const_r()(), tev_stage.const_g()(), tev_stage.const_b()(), tev_stage.const_a()() }) {
                     memcpy(ubo_data_ptr, &val, sizeof(val));
                     ubo_data_ptr += sizeof(val);
                 }

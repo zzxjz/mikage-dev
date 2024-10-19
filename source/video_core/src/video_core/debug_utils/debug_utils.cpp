@@ -676,7 +676,7 @@ void DumpTevStageConfig(const std::array<Pica::Regs::TevStageConfig,6>& stages)
             { Source::Texture0, "Texture0" },
             { Source::Texture1, "Texture1" },
             { Source::Texture2, "Texture2" },
-            { Source::Constant, fmt::format("({}, {}, {}, {})", tev_stage.const_r.Value(), tev_stage.const_g.Value(), tev_stage.const_b.Value(), tev_stage.const_a.Value()) },
+            { Source::Constant, fmt::format("({}, {}, {}, {})", tev_stage.const_r()(), tev_stage.const_g()(), tev_stage.const_b()(), tev_stage.const_a()()) },
             { Source::Previous, "Previous" },
         };
 
@@ -733,18 +733,18 @@ void DumpTevStageConfig(const std::array<Pica::Regs::TevStageConfig,6>& stages)
                 };
         static auto GetColorCombinerStr =
                 [](const Regs::TevStageConfig& tev_stage) {
-                    auto op_it = combiner_map.find(tev_stage.color_op);
+                    auto op_it = combiner_map.find(tev_stage.color_op());
                     std::string op_str = "Unknown op (%source1, %source2, %source3)";
                     if (op_it != combiner_map.end()) {
                         op_str = op_it->second;
                     } else {
-                        op_str = fmt::format("UnknownOp_{:#x}", static_cast<uint32_t>(tev_stage.color_op.Value()));
+                        op_str = fmt::format("UnknownOp_{:#x}", static_cast<uint32_t>(tev_stage.color_op()()));
                     }
 
 
-                    op_str = ReplacePattern(op_str, "%source1", GetColorSourceStr(tev_stage.color_source1, tev_stage.color_modifier1));
-                    op_str = ReplacePattern(op_str, "%source2", GetColorSourceStr(tev_stage.color_source2, tev_stage.color_modifier2));
-                    return   ReplacePattern(op_str, "%source3", GetColorSourceStr(tev_stage.color_source3, tev_stage.color_modifier3));
+                    op_str = ReplacePattern(op_str, "%source1", GetColorSourceStr(tev_stage.color_source1(), tev_stage.color_modifier1()));
+                    op_str = ReplacePattern(op_str, "%source2", GetColorSourceStr(tev_stage.color_source2(), tev_stage.color_modifier2()));
+                    return   ReplacePattern(op_str, "%source3", GetColorSourceStr(tev_stage.color_source3(), tev_stage.color_modifier3()));
                 };
         static auto GetAlphaSourceStr =
                 [](const Source& src, const AlphaModifier& modifier) {
@@ -765,14 +765,14 @@ void DumpTevStageConfig(const std::array<Pica::Regs::TevStageConfig,6>& stages)
                 };
         static auto GetAlphaCombinerStr =
                 [](const Regs::TevStageConfig& tev_stage) {
-                    auto op_it = combiner_map.find(tev_stage.alpha_op);
+                    auto op_it = combiner_map.find(tev_stage.alpha_op());
                     std::string op_str = "Unknown op (%source1, %source2, %source3)";
                     if (op_it != combiner_map.end())
                         op_str = op_it->second;
 
-                    op_str = ReplacePattern(op_str, "%source1", GetAlphaSourceStr(tev_stage.alpha_source1, tev_stage.alpha_modifier1));
-                    op_str = ReplacePattern(op_str, "%source2", GetAlphaSourceStr(tev_stage.alpha_source2, tev_stage.alpha_modifier2));
-                    return   ReplacePattern(op_str, "%source3", GetAlphaSourceStr(tev_stage.alpha_source3, tev_stage.alpha_modifier3));
+                    op_str = ReplacePattern(op_str, "%source1", GetAlphaSourceStr(tev_stage.alpha_source1(), tev_stage.alpha_modifier1()));
+                    op_str = ReplacePattern(op_str, "%source2", GetAlphaSourceStr(tev_stage.alpha_source2(), tev_stage.alpha_modifier2()));
+                    return   ReplacePattern(op_str, "%source3", GetAlphaSourceStr(tev_stage.alpha_source3(), tev_stage.alpha_modifier3()));
                 };
 
         stage_info += "Stage " + std::to_string(index) + ": " + GetColorCombinerStr(tev_stage) + "   " + GetAlphaCombinerStr(tev_stage) + "\n";

@@ -31,7 +31,7 @@ enum class CullMode : uint32_t {
     // TODO: What does the third value imply?
 };
 
-union AlphaTest {
+struct AlphaTest {
     enum class Function : uint32_t {
         Always             = 1,
         NotEqual           = 3,
@@ -39,9 +39,11 @@ union AlphaTest {
         GreaterThanOrEqual = 7,
     };
 
-    BitFieldLegacy<0, 1, uint32_t> enable;
-    BitFieldLegacy<4, 3, Function> function;
-    BitFieldLegacy<8, 8, uint32_t> reference;
+    uint32_t storage;
+
+    auto enable() const { return BitField::v3::MakeFlagOn<0>(this); }
+    auto function() const { return BitField::v3::MakeFieldOn<4, 3, Function>(this); }
+    auto reference() const { return BitField::v3::MakeFieldOn<8, 8>(this); }
 };
 
 struct StencilTest {
@@ -474,54 +476,46 @@ struct Regs {
             AddThenMultiply = 9,
         };
 
-        union {
-            BitFieldLegacy< 0, 4, Source> color_source1;
-            BitFieldLegacy< 4, 4, Source> color_source2;
-            BitFieldLegacy< 8, 4, Source> color_source3;
-            BitFieldLegacy<16, 4, Source> alpha_source1;
-            BitFieldLegacy<20, 4, Source> alpha_source2;
-            BitFieldLegacy<24, 4, Source> alpha_source3;
-        };
+        uint32_t storage[5];
 
-        union {
-            BitFieldLegacy< 0, 4, ColorModifier> color_modifier1;
-            BitFieldLegacy< 4, 4, ColorModifier> color_modifier2;
-            BitFieldLegacy< 8, 4, ColorModifier> color_modifier3;
-            BitFieldLegacy<12, 3, AlphaModifier> alpha_modifier1;
-            BitFieldLegacy<16, 3, AlphaModifier> alpha_modifier2;
-            BitFieldLegacy<20, 3, AlphaModifier> alpha_modifier3;
-        };
+        auto color_source1() const { return BitField::v3::MakeFieldOn<0, 4, Source>(&storage[0]); }
+        auto color_source2() const { return BitField::v3::MakeFieldOn<4, 4, Source>(&storage[0]); }
+        auto color_source3() const { return BitField::v3::MakeFieldOn<8, 4, Source>(&storage[0]); }
+        auto alpha_source1() const { return BitField::v3::MakeFieldOn<16, 4, Source>(&storage[0]); }
+        auto alpha_source2() const { return BitField::v3::MakeFieldOn<20, 4, Source>(&storage[0]); }
+        auto alpha_source3() const { return BitField::v3::MakeFieldOn<24, 4, Source>(&storage[0]); }
 
-        union {
-            BitFieldLegacy< 0, 4, Operation> color_op;
-            BitFieldLegacy<16, 4, Operation> alpha_op;
-        };
+        auto color_modifier1() const { return BitField::v3::MakeFieldOn<0, 4, ColorModifier>(&storage[1]); }
+        auto color_modifier2() const { return BitField::v3::MakeFieldOn<4, 4, ColorModifier>(&storage[1]); }
+        auto color_modifier3() const { return BitField::v3::MakeFieldOn<8, 4, ColorModifier>(&storage[1]); }
+        auto alpha_modifier1() const { return BitField::v3::MakeFieldOn<12, 3, AlphaModifier>(&storage[1]); }
+        auto alpha_modifier2() const { return BitField::v3::MakeFieldOn<16, 3, AlphaModifier>(&storage[1]); }
+        auto alpha_modifier3() const { return BitField::v3::MakeFieldOn<20, 3, AlphaModifier>(&storage[1]); }
 
-        union {
-            BitFieldLegacy< 0, 8, uint32_t> const_r;
-            BitFieldLegacy< 8, 8, uint32_t> const_g;
-            BitFieldLegacy<16, 8, uint32_t> const_b;
-            BitFieldLegacy<24, 8, uint32_t> const_a;
-        };
+        auto color_op() const { return BitField::v3::MakeFieldOn<0, 4, Operation>(&storage[2]); }
+        auto alpha_op() const { return BitField::v3::MakeFieldOn<16, 4, Operation>(&storage[2]); }
 
-        union {
-            // Access these through the convenience getters below
-            BitFieldLegacy< 0, 2, uint32_t> multiplier_exp_rgb;
-            BitFieldLegacy<16, 2, uint32_t> multiplier_exp_a;
-        };
+        auto const_r() const { return BitField::v3::MakeFieldOn<0, 8, uint8_t>(&storage[3]); }
+        auto const_g() const { return BitField::v3::MakeFieldOn<8, 8, uint8_t>(&storage[3]); }
+        auto const_b() const { return BitField::v3::MakeFieldOn<16, 8, uint8_t>(&storage[3]); }
+        auto const_a() const { return BitField::v3::MakeFieldOn<24, 8, uint8_t>(&storage[3]); }
+
+        // Access these through the convenience getters below
+        auto multiplier_exp_rgb() const { return BitField::v3::MakeFieldOn<0, 2>(&storage[4]); }
+        auto multiplier_exp_a() const { return BitField::v3::MakeFieldOn<16, 2>(&storage[4]); }
 
         uint32_t GetMultiplierRGB() const {
-            if (multiplier_exp_rgb == 3) {
+            if (multiplier_exp_rgb() == 3) {
                 throw std::runtime_error("Invalid RGB scaling exponent 3");
             }
-            return (1 << multiplier_exp_rgb);
+            return (1 << multiplier_exp_rgb());
         }
 
         uint32_t GetMultiplierA() const {
-            if (multiplier_exp_a == 3) {
+            if (multiplier_exp_a() == 3) {
                 throw std::runtime_error("Invalid alpha scaling exponent 3");
             }
-            return (1 << multiplier_exp_a);
+            return (1 << multiplier_exp_a());
         }
     };
 
@@ -687,12 +681,12 @@ struct Regs {
         struct {
             // The 3DS fragment lighting pipeline doesn't distinguish between
             // materials and lights, so these properties are premultiplied
-            LightingColor specular[2];
+            std::array<LightingColor, 2> specular;
             LightingColor diffuse;
             LightingColor ambient;
 
             // NOTE: If is_directional() is false, these actually specify the position
-            uint32_t raw_light_dir[2];
+            std::array<uint32_t, 2> raw_light_dir;
             constexpr auto raw_light_dir_x() const { return BitField::v3::MakeFieldOn< 0, 16>(&raw_light_dir[0]); }
             constexpr auto raw_light_dir_y() const { return BitField::v3::MakeFieldOn<16, 16>(&raw_light_dir[0]); }
             constexpr auto raw_light_dir_z() const { return BitField::v3::MakeFieldOn< 0, 16>(&raw_light_dir[1]); }
@@ -701,7 +695,7 @@ struct Regs {
             float16 get_light_dir_z() const { return float16::FromRawFloat(raw_light_dir_z()); }
 
             // 13-bit signed fixed-point coordinates with 11 bits of precision
-            uint32_t raw_spot_dir[2];
+            std::array<uint32_t, 2> raw_spot_dir;
             constexpr auto spot_dir_x() const { return BitField::v3::MakeFieldOn< 0, 13, int32_t>(&raw_spot_dir[0]); }
             constexpr auto spot_dir_y() const { return BitField::v3::MakeFieldOn<16, 13, int32_t>(&raw_spot_dir[0]); }
             constexpr auto spot_dir_z() const { return BitField::v3::MakeFieldOn< 0, 13, int32_t>(&raw_spot_dir[1]); }
@@ -857,7 +851,7 @@ struct Regs {
         uint32_t storage_light_permutation;
 
         // Maps light IDs (0..max_light_id) to indexes into the light config array
-        unsigned GetLightIndex(unsigned id) {
+        unsigned GetLightIndex(unsigned id) const {
             return (storage_light_permutation >> (4 * id)) & 0b111;
         }
 
