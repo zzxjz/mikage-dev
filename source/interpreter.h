@@ -91,7 +91,7 @@ inline bool TryAccess(std::weak_ptr<WrappedAttachInfo> attach_info_weak, std::fu
     // Drop the original data and signal the main thread to continue
     // Note that we lock the mutex here purely to make sure we don't signal the condition variable before it is being waited for
     attach_info_shared->data = nullptr;
-    std::lock_guard<std::mutex>(attach_info_shared->condvar_mutex);
+    std::lock_guard<std::mutex> lock(attach_info_shared->condvar_mutex);
     attach_info_shared->request_continue.notify_all();
     return true;
 }

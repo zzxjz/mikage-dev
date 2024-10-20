@@ -325,7 +325,7 @@ public:
 //        auto this_frame = clock::now();
 
         // TODO: Commit this change!
-        device->waitForFences({*current_frame->render_finished_fence}, true, std::numeric_limits<uint64_t>::max());
+        (void)device->waitForFences({*current_frame->render_finished_fence}, true, std::numeric_limits<uint64_t>::max());
 
         auto [result, next_image_index] = device->acquireNextImageKHR(*swapchain, std::numeric_limits<uint64_t>::max(), *current_frame->image_available_semaphore, vk::Fence { });
         if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR) {
@@ -430,7 +430,7 @@ public:
                                     1, &*command_buffer,
                                     1, &*current_frame->render_finished_semaphore };
 
-            graphics_queue.submit(1, &info, *current_frame->render_finished_fence);
+            (void)graphics_queue.submit(1, &info, *current_frame->render_finished_fence);
             current_frame->render_finished_fence_awaitable = CPUAwaitable(*current_frame->render_finished_fence);
         }
 
@@ -464,7 +464,7 @@ public:
 //        std::this_thread::sleep_for(std::chrono::milliseconds { 1000 } / 30);
 
         if (new_frame_received[0] || new_frame_received[2]) { // TODO: Hide frame dumping behind setting
-            device->waitForFences({*current_frame->render_finished_fence}, true, std::numeric_limits<uint64_t>::max());
+            (void)device->waitForFences({*current_frame->render_finished_fence}, true, std::numeric_limits<uint64_t>::max());
             device->waitIdle();
 
             auto data = reinterpret_cast<char*>(device->mapMemory(*current_frame->framedump_memory, 0, 400 * 240 * 4 * FrameData::num_screen_ids));

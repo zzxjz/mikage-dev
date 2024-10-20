@@ -370,7 +370,7 @@ void Renderer::ProduceFrame(EmuDisplay::EmuDisplay& display, EmuDisplay::Frame& 
                 vk::SubmitInfo submit_info { 0, nullptr, &submit_wait_flags, 1, &*command_buffer, 0, nullptr };
                 {
                     std::unique_lock lock(g_vulkan_queue_mutex);
-                    graphics_queue.submit(1, &submit_info, vk::Fence { });
+                    (void)graphics_queue.submit(1, &submit_info, vk::Fence { });
                 }
 
                 FrameMark;
@@ -1367,7 +1367,7 @@ void Renderer::FlushTriangleBatches(Context& context) try {
         vk::SubmitInfo submit_info { 0, nullptr, &submit_wait_flags, 1, &*batch.command_buffer, 0, nullptr };
 
         std::unique_lock lock(g_vulkan_queue_mutex);
-        graphics_queue.submit(1, &submit_info, *batch.fence);
+        (void)graphics_queue.submit(1, &submit_info, *batch.fence);
     }
 } catch (std::exception& exc) {
     printf("EXCEPTION: %s\n", exc.what());
@@ -1420,7 +1420,7 @@ bool Renderer::BlitImage(Context& context, uint32_t /* TODO: PAddr */ input_addr
 
     // Wait for blit resources to become available again
     auto& completion_fence = blit_resources[next_blit_resource].completion_fence;
-    device.waitForFences({ *completion_fence }, true, std::numeric_limits<uint64_t>::max());
+    (void)device.waitForFences({ *completion_fence }, true, std::numeric_limits<uint64_t>::max());
     device.resetFences({ *completion_fence });
     auto& [command_buffer, command_buffer2] = blit_resources[next_blit_resource].command_buffers;
     ++next_blit_resource %= blit_resources.size();
@@ -1500,7 +1500,7 @@ bool Renderer::BlitImage(Context& context, uint32_t /* TODO: PAddr */ input_addr
             &submit_wait_flags, 1, &*command_buffer, 0, nullptr };
 
         std::unique_lock lock(g_vulkan_queue_mutex);
-        graphics_queue.submit(1, &submit_info, *completion_fence);
+        (void)graphics_queue.submit(1, &submit_info, *completion_fence);
     }
 
     resource_manager->InvalidateOverlappingResources(output);

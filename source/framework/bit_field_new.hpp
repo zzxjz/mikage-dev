@@ -36,7 +36,7 @@ public:
     }
 
     // Setter: Copies the storage of the parent instance and returns the manipulated value (contained in the new parent instance)
-    ParentClass Set(Exposure value) const {
+    [[nodiscard]] ParentClass Set(Exposure value) const {
         //static_assert(std::is_base_of_v<BitsOnBase, ParentClass>, "Given ParentClass does not inherit BitsOnBase");
         static_assert(sizeof(ParentClass) == sizeof(Storage), "ParentClass has additional members other than storage");
 
@@ -51,7 +51,7 @@ public:
     }
 
     /// Concise version of Set(value)
-    ParentClass operator ()(Exposure value) const {
+    [[nodiscard]] ParentClass operator ()(Exposure value) const {
         return Set(value);
     }
 
@@ -185,7 +185,7 @@ public:
     }
 
     // Setter: Copies the storage of the parent instance and returns the manipulated value (contained in the new parent instance)
-    constexpr ParentClass Set(Exposure value) const {
+    [[nodiscard]] constexpr ParentClass Set(Exposure value) const {
         //static_assert(std::is_base_of_v<BitsOnBase, ParentClass>, "Given ParentClass does not inherit BitsOnBase");
         static_assert(sizeof(ParentClass) == sizeof(Storage), "ParentClass has additional members other than storage");
 
@@ -206,7 +206,7 @@ public:
     }
 
     /// Concise version of Set(value)
-    constexpr ParentClass operator ()(Exposure value) const {
+    [[nodiscard]] constexpr ParentClass operator ()(Exposure value) const {
         return Set(value);
     }
 
@@ -249,7 +249,7 @@ public:
     }
 
     // Setter: Copies the storage of the parent instance and returns the manipulated value (contained in the new parent instance)
-    ParentClass Set(Exposure value) const {
+    [[nodiscard]] ParentClass Set(Exposure value) const {
         return MemberLens::modify(   *this,
                                     [&](const auto& data) { return (data & neg_field_mask) | ((static_cast<Storage>(value) << Position) & field_mask); });
     }
@@ -260,7 +260,7 @@ public:
     }
 
     /// Concise version of Set(value)
-    constexpr ParentClass operator ()(Exposure value) const {
+    [[nodiscard]] constexpr ParentClass operator ()(Exposure value) const {
         return Set(value);
     }
 

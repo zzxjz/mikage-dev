@@ -26,6 +26,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_compile_options(-Werror=implicit-fallthrough)
 add_compile_options(-Werror=return-type)
+add_compile_options(-Werror=unused-result)
 
 # Prefer Conan-provided packages over system ones
 set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
