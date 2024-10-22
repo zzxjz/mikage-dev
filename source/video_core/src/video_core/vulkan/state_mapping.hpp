@@ -201,6 +201,9 @@ inline vk::CompareOp FromPicaState(StencilTest::CompareFunc compare_func) {
     case Func::LessThan:
         return vk::CompareOp::eLess;
 
+    case Func::GreaterThan:
+        return vk::CompareOp::eGreater;
+
     default:
         throw std::runtime_error(fmt::format("Unknown stencil compare func {:#x}", static_cast<uint32_t>(compare_func)));
     }
