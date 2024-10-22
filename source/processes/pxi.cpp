@@ -509,16 +509,19 @@ static std::tuple<Result> PSVerifyRsaSha256(FakeThread& thread, Context& context
     return std::make_tuple(RESULT_OK);
 }
 
-static void PXIPSCommandHandler(FakeThread& thread, Context& context, const IPC::CommandHeader& header) try {
+static auto PXIPSCommandHandler(FakeThread& thread, Context& context, const IPC::CommandHeader& header) try {
     namespace PXIPS = Platform::PXI::PS;
 
     switch (header.command_id) {
     case PXIPS::VerifyRsaSha256::id:
-        return IPC::HandleIPCCommand<PXIPS::VerifyRsaSha256>(PSVerifyRsaSha256, thread, thread, context);
+        IPC::HandleIPCCommand<PXIPS::VerifyRsaSha256>(PSVerifyRsaSha256, thread, thread, context);
+        break;
 
     default:
         throw IPC::IPCError{header.raw, 0xdeadbef1};
     }
+
+    return OS::ServiceHelper::SendReply;
 } catch (const IPC::IPCError& err) {
     throw std::runtime_error(fmt::format("Unknown pxi:ps9 service command with header {:#010x}", err.header));
 }
@@ -534,44 +537,15 @@ void FakePXI::PSThread(FakeThread& thread, Context& context) {
         thread.WriteTLS(0x184 + 8 * buffer_index, buffer_addr);
     }
 
-    OS::ServiceUtil service(thread, "pxi:ps9", 1);
+    OS::ServiceHelper service;
+    service.Append(OS::ServiceUtil::SetupService(thread, "pxi:ps9", 1));
 
-    OS::Handle last_signalled = OS::HANDLE_INVALID;
+    auto InvokeCommandHandler = [&context](FakeThread& thread, uint32_t /* index of signalled handle */) {
+        Platform::IPC::CommandHeader header = { thread.ReadTLS(0x80) };
+        return PXIPSCommandHandler(thread, context, header);
+    };
 
-    for (;;) {
-        Result result;
-        int32_t index;
-        std::tie(result,index) = service.ReplyAndReceive(thread, last_signalled);
-        last_signalled = OS::HANDLE_INVALID;
-        if (result != RESULT_OK)
-            os.SVCBreak(thread, OSImpl::BreakReason::Panic);
-
-        if (index == 0) {
-            // ServerPort: Incoming client connection
-
-            int32_t session_index;
-            std::tie(result,session_index) = service.AcceptSession(thread, index);
-            if (result != RESULT_OK) {
-                auto session = service.GetObject<OS::ServerSession>(session_index);
-                if (!session) {
-                    logger.error("{}Failed to accept session.", ThreadPrinter{thread});
-                    os.SVCBreak(thread, OSImpl::BreakReason::Panic);
-                }
-
-                auto session_handle = service.GetHandle(session_index);
-                logger.warn("{}Failed to accept session. Maximal number of sessions exhausted? Closing session handle {}",
-                            ThreadPrinter{thread}, OS::HandlePrinter{thread,session_handle});
-                os.SVCCloseHandle(thread, session_handle);
-            }
-        } else {
-            // server_session: Incoming IPC command from the indexed client
-            logger.info("{}received IPC request, {:#08x}, {:#08x}, {:#08x}, {:#08x}", ThreadPrinter{thread}, thread.ReadTLS(0x80), thread.ReadTLS(0x84), thread.ReadTLS(0x88), thread.ReadTLS(0x8c));
-            Platform::IPC::CommandHeader header = { thread.ReadTLS(0x80) };
-            auto signalled_handle = service.GetHandle(index);
-            PXIPSCommandHandler(thread, context, header);
-            last_signalled = signalled_handle;
-        }
-    }
+    service.Run(thread, std::move(InvokeCommandHandler));
 }
 
 static std::tuple<Result> MCHandleUnknown0x1(FakeThread& thread, Context& context, uint32_t arg1) {
