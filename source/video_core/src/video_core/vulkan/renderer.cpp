@@ -1096,7 +1096,7 @@ void Renderer::FinalizeTriangleBatchInternal(Context& context, const VertexShade
             // Hit in steel diver on startup!
             // throw Mikage::Exceptions::Invalid("Inconsistent lighting configuration: Attempted to read disabled LUTs");
         }
-        const uint32_t used_luts = context.registers.lighting.config.GetEnabledLUTMask();
+        const uint32_t used_luts = context.registers.lighting.disabled() ? 0 : context.registers.lighting.config.GetEnabledLUTMask();
 
         for (unsigned lut_index = 0; lut_index < 24; ++lut_index) {
             if (!(used_luts & (1 << lut_index))) {
