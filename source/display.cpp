@@ -174,7 +174,7 @@ EmuDisplay::EmuDisplay(spdlog::logger& logger, vk::PhysicalDevice physical_devic
                 1,
                 vk::SampleCountFlagBits::e1,
                 vk::ImageTiling::eOptimal,
-                vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eColorAttachment,
+                vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled,
                 vk::SharingMode::eExclusive, // TODO: Probably should be sharing this?
                 0, nullptr, // queue families
                 vk::ImageLayout::eUndefined

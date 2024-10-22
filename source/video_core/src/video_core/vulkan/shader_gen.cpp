@@ -103,7 +103,7 @@ std::string GenerateFragmentShader(Context& context) {
                         code += "layout(binding = 3) uniform sampler2D sampler2;\n";
 
     code += "layout(location = 4) in vec4 in_quat;\n";
-    code += "layout(location = 5) in vec3 in_view;\n";
+    code += "layout(location = 5) in vec4 in_view;\n";
 
     // Lighting lookup tables
     // NOTE: No Vulkan drivers advertise maxImageDimension1D < 4096... TODO: But actually these are texel buffers now
@@ -157,7 +157,7 @@ std::string GenerateFragmentShader(Context& context) {
         code += fmt::format("vec4 lit_color_primary = vec4(uniforms.light_global_ambient.rgb, 1.0);\n"); // TODO: Should be a uvec4. TODO: Should this be enabled even if lighting is globally off?
         code += fmt::format("uvec4 lit_color_secondary = uvec4(0, 0, 0, 255);\n");
 
-        code += fmt::format("vec3 view = normalize(in_view);\n");
+        code += fmt::format("vec3 view = normalize(in_view.xyz);\n");
 
         // (TODO: Handle opposite quaternion case)
         // TODO: To support bump mapping, a generic quaternion transform must be implemented here
@@ -232,7 +232,7 @@ std::string GenerateFragmentShader(Context& context) {
             // TODO: Should the normalized view be added here? Test this!
             // NOTE: Nano Assault uses a really silly light vector (-10000, 0, 2500) on the title screen, so it seems safe to assume this is unconditionally normalized
             code += fmt::format("vec3 light_vector = normalize(uniforms.lights[{}].diffuse_dir.rgb{});\n",
-                                light_index, light_config.config.is_directional() ? "" : " + in_view");
+                                light_index, light_config.config.is_directional() ? "" : " + in_view.xyz");
 
             code += fmt::format("vec3 half_vector = view + light_vector;\n");
             code += fmt::format("float half_vector_length_sq = dot(half_vector, half_vector);\n");

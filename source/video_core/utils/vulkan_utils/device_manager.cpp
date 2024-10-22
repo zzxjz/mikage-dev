@@ -59,11 +59,10 @@ bool IsRenderDocActive() {
     return is_active;
 }
 
-VulkanDeviceManager::VulkanDeviceManager(VulkanInstanceManager& instance, spdlog::logger&, vk::SurfaceKHR surface, bool is_wayland) {
+VulkanDeviceManager::VulkanDeviceManager(VulkanInstanceManager& instance, spdlog::logger& logger, vk::SurfaceKHR surface, bool is_wayland) {
     physical_device = std::invoke([&]() {
         auto physical_devices = instance.instance->enumeratePhysicalDevices();
         for (auto& phys_device : physical_devices) {
-//            auto features = phys_device.getFeatures();
             auto properties = phys_device.getProperties();
             std::cerr << "Found device: \"" << properties.deviceName << "\"" << std::endl;
         }
@@ -168,7 +167,14 @@ VulkanDeviceManager::VulkanDeviceManager(VulkanInstanceManager& instance, spdlog
             VULKAN_HPP_DEFAULT_DISPATCHER.vkCmdDebugMarkerEndEXT = nullptr;
         }
 
+        auto supported_features = physical_device.getFeatures();
         auto features = vk::PhysicalDeviceFeatures { };
+        if (supported_features.logicOp) {
+            features.logicOp = true;
+        } else {
+            // TODO: Implement fallback
+            logger.warn("Warning: GPU driver does not support logic operations.");
+        }
 
         vk::DeviceCreateInfo info { vk::DeviceCreateFlagBits { },
                                     static_cast<uint32_t>(queue_info.size()), queue_info.data(),
