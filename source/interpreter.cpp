@@ -369,6 +369,7 @@ static uint32_t HandlerBranchExchange(InterpreterExecutionContext& ctx, ARM::ARM
     return target & ~UINT32_C(1);
 }
 
+// TODO: Add decoding rule
 static uint32_t HandlerCPS(CPUContext& ctx, ARM::ARMInstr instr) {
     if (!EvalCond(ctx, instr.cond))
         return NextInstr(ctx);
@@ -1516,8 +1517,6 @@ static uint32_t Handler0001(InterpreterExecutionContext& ctx, ARM::ARMInstr inst
         } else {
             return HandlerBranchExchange<false>(ctx, instr);
         }
-    } else if ((instr.raw & 0b1111'1111'0001'1111'1110'0010'0000) == 0b0001'0000'0000'0000'0000'0000'0000) {
-        return HandlerCPS(ctx, instr);
     } else if ((instr.raw & 0b1111'1011'1111'0000'1111'1111'1111) == 0b0001'0000'1111'0000'0000'0000'0000) {
         return HandlerMRS(ctx, instr);
     } else if ((instr.raw & 0b1111'1011'0000'1111'1111'1111'0000) == 0b0001'0010'0000'1111'0000'0000'0000) {
