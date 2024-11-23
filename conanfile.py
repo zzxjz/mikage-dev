@@ -15,10 +15,18 @@ class MikageConan(ConanFile):
         "catch2/2.13.7",
         "glslang/1.3.268.0",
         "spirv-tools/1.3.268.0",
-        "tracy/0.9.1",
+        "tracy/0.11.1",
         "xxhash/0.8.0",
         "fmt/8.1.1",
     ]
+
+    options = {
+        "enable_profiler": [True, False]
+    }
+
+    default_options = {
+        "enable_profiler": False
+    }
 
     def configure(self):
         # TODO: Works around conan-center-index issue 7118
@@ -29,7 +37,7 @@ class MikageConan(ConanFile):
         self.options["pulseaudio"].with_alsa = False
         #self.options["sdl"].nas = True
 
-        self.options["tracy"].enable = False # TODO: Allow overriding this setting
+        self.options["tracy"].enable = self.options.enable_profiler
         self.options["tracy"].fibers = True
 
         if self.settings.os == "Android":
