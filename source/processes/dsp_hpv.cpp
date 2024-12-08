@@ -7,6 +7,7 @@
 
 #include <framework/exceptions.hpp>
 
+
 namespace HLE {
 
 namespace OS {
@@ -66,6 +67,7 @@ struct DspService : SessionToPort {
                                             channel, num_bytes, peer == 0 ? "DSP" : peer == 1 ? "ARM" : "unknown peer");
             Session::OnRequest(hypervisor, thread, session, description);
 
+
             response.OnResponse([this](Hypervisor&, Thread& thread, Result result, uint32_t num_bytes_read, IPC::StaticBuffer data) {
                 if (result != RESULT_OK || !num_bytes_read) {
                     throw std::runtime_error("Unexpected error in ReadPipeIfPossible");
@@ -84,16 +86,6 @@ struct DspService : SessionToPort {
             for (unsigned i = 0; i < signature.size(); ++i) {
                 signature[i] = thread.ReadMemory(data.addr + i);
             }
-
-{
-auto filename = fmt::format("dsp.{:x}.dsp1", fmt::join(signature.begin(), signature.begin() + 16, ""));
-fprintf(stderr, "%s\n", filename.c_str());
-std::ofstream dump(filename, /*std::ios::out |*/ std::ios::binary);
-for (uint32_t i = 0; i < size; ++i) {
-uint8_t val = thread.ReadMemory(data.addr + i);
-dump.write((char*)&val, sizeof(val));
-}
-}
 
             pipe_read_state = PipeReadState::Reset;
         });

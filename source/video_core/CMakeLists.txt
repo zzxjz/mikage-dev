@@ -31,6 +31,7 @@ if (PISTACHE_FOUND)
     target_sources(video_core PRIVATE src/debug/gpu.cpp)
 endif()
 
+
 target_include_directories(video_core PRIVATE src/support src/ externals/nihstro/include)
 target_include_directories(video_core PRIVATE ../)
 # target_include_directories(video_core PRIVATE externals/vulkan-hpp/vulkan) TODO: Need to also include Vulkan headers with matching version... For now, I'm just using the headers shipping with my Linux distribution

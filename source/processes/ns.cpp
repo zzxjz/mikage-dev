@@ -45,6 +45,7 @@ using Platform::NS::AppletCommand;
 using Platform::NS::AppletPos;
 using Platform::PXI::PM::ProgramInfo;
 
+
 template<typename RangeIn>
 static uint32_t GetDecompressedLZSSDataSize(const RangeIn& compressed_reverse) {
     // Reverse the input buffer
@@ -135,6 +136,7 @@ static void DecompressLZSSData(const RangeIn& compressed_reverse, const RangeOut
         }
     }
 }
+
 
 HandleTable::Entry<Process> LoadProcessFromFile(FakeThread& source,
                                                 bool from_firm,
@@ -407,6 +409,7 @@ OS::ResultAnd<ProcessId> LaunchTitleInternal(FakeThread& source, bool from_firm,
 
     return std::make_tuple(RESULT_OK, process_id);
 }
+
 
 }  // namespace OS
 

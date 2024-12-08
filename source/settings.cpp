@@ -11,11 +11,13 @@ namespace Config {
 template<>
 bool BooleanOption<Settings::BootToHomeMenu>::default_val = false;
 
+
 template<>
 bool BooleanOption<Settings::UseNativeHID>::default_val = false;
 
 template<>
 bool BooleanOption<Settings::UseNativeFS>::default_val = false;
+
 
 template<>
 bool BooleanOption<Settings::DumpFrames>::default_val = false;

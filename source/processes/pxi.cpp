@@ -519,7 +519,7 @@ static void PXIPSCommandHandler(FakeThread& thread, Context& context, const IPC:
         throw IPC::IPCError{header.raw, 0xdeadbef1};
     }
 } catch (const IPC::IPCError& err) {
-    throw std::runtime_error(fmt::format("Unknown PxiPM service command with header {:#010x}", err.header));
+    throw std::runtime_error(fmt::format("Unknown pxi:ps9 service command with header {:#010x}", err.header));
 }
 
 void FakePXI::PSThread(FakeThread& thread, Context& context) {

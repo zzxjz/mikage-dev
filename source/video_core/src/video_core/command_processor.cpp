@@ -150,6 +150,7 @@ static bool IsNopDraw(const Regs& registers) {
     return false;
 }
 
+
 static inline void WritePicaReg(Context& context, u32 id, u32 value, u32 mask, CommandListIterator& next_command) {
     auto& registers = context.registers;
     if (id >= registers.NumIds())
@@ -273,6 +274,7 @@ static inline void WritePicaReg(Context& context, u32 id, u32 value, u32 mask, C
             if (g_debug_context)
                 g_debug_context->OnEvent(DebugContext::Event::IncomingPrimitiveBatch, nullptr);
 
+
             const auto& attribute_config = registers.vertex_attributes;
 
             VertexLoader vertex_loader(context, attribute_config);
@@ -283,6 +285,7 @@ static inline void WritePicaReg(Context& context, u32 id, u32 value, u32 mask, C
             const auto& index_info = registers.index_array;
             const uint32_t index_address = attribute_config.GetPhysicalBaseAddress() + index_info.offset;
             const bool index_u16 = index_info.format != 0;
+
 
             const bool render_on_cpu = (context.settings->get<Settings::RendererTag>() == Settings::Renderer::Software);
 
@@ -423,11 +426,6 @@ Vulkan::preassembled_triangles = true;
                         id <= PICA_REG_INDEX(fixed_vertex_attribute_sink.data[2]));
             };
 
-//            context.shader_uniforms.f[95].x = float24::FromFloat32(1.0);
-//            context.shader_uniforms.f[95].y = float24::FromFloat32(1.0);
-//            context.shader_uniforms.f[95].z = float24::FromFloat32(1.0);
-//            context.shader_uniforms.f[95].w = float24::FromFloat32(1.0);
-
             auto& sink = registers.fixed_vertex_attribute_sink;
             if (sink.IsImmediateSubmission()) {
                 const bool render_on_cpu = (context.settings->get<Settings::RendererTag>() == Settings::Renderer::Software);
@@ -444,6 +442,7 @@ Vulkan::preassembled_triangles = true;
                 if (IsNopDraw(registers)) {
                     break;
                 }
+
 
                 VertexShader::InputVertex input {};
                 auto& engine = context.shader_engines.GetOrCompile(context, context.settings->get<Settings::ShaderEngineTag>(), registers.vs_main_offset);
@@ -467,7 +466,6 @@ Vulkan::preassembled_triangles = true;
                             throw std::runtime_error("Submitted other commands before vertex was complete");
                         }
                         data_buffer[word_index] = next_command.Value();
-fprintf(stderr, "WritePicaReg_cont: %#04x <- %#010x & %#010x\n", next_command.Id(), next_command.Value(), next_command.Mask());
                         ++next_command;
                     }
                     first = false;
@@ -692,7 +690,7 @@ fprintf(stderr, "WritePicaReg_cont: %#04x <- %#010x & %#010x\n", next_command.Id
 void ProcessCommandList(Context& context, PAddr list_addr, u32 size) {
     CommandListIterator it(*context.mem, list_addr, size);
 
-    fprintf(stderr, "\nWritePicaReg: Incoming command list\n");
+
     while (it) {
         auto id = it.Id();
         auto value = it.Value();

@@ -30,6 +30,7 @@ Memory::PhysicalMemory* g_mem = nullptr; // TODO: Remove
 bool g_dsp_running = false; // TODO: Remove
 bool g_dsp_just_reset = false; // TODO: Remove
 
+
 namespace Pica {
 struct Context;
 }
@@ -614,7 +615,6 @@ struct SPI : MemoryAccessHandler {
 struct CONFIG11 : MemoryAccessHandler {
     std::shared_ptr<spdlog::logger> logger;
 
-    // TODO: Is this still needed?
     Teakra::Teakra *teakra = new Teakra::Teakra(Teakra::CreateInterpreterEngine);
 
     uint16_t unknown0x1c0 = 0;
@@ -1015,6 +1015,7 @@ struct DSPMMIO : MemoryAccessHandler {
             }
 
             if (!config.trigger_reset() && prev_config.trigger_reset()) {
+
                 std::vector<std::uint8_t> temp(0x80000);
                 memcpy(temp.data(), g_teakra->GetDspMemory().data(), temp.size());
                 delete g_teakra;

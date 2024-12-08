@@ -41,7 +41,10 @@
 
 #include <vulkan/vulkan.hpp>
 
+
+
 void InstallCIA(std::filesystem::path, spdlog::logger&, const KeyDatabase&, HLE::PXI::FS::FileContext&, HLE::PXI::FS::File&);
+
 
 using boost::endian::big_uint32_t;
 
@@ -53,27 +56,11 @@ std::mutex g_vulkan_queue_mutex; // TODO: Turn into a proper interface
 
 namespace bpo = boost::program_options;
 
+
 static volatile int wait_debugger = 0;
 
 namespace Settings {
 
-inline std::istream& operator>>(std::istream& is, CPUEngine& engine) {
-    std::string str;
-    is >> str;
-    if (str == "narmive") {
-        engine = CPUEngine::NARMive;
-    } else {
-        is.setstate(std::ios_base::failbit);
-    }
-    return is;
-}
-
-inline std::ostream& operator<<(std::ostream& os, CPUEngine engine) {
-    switch (engine) {
-    case CPUEngine::NARMive:
-        return (os << "narmive");
-    }
-}
 
 inline std::istream& operator>>(std::istream& is, ShaderEngine& engine) {
     std::string str;
@@ -123,6 +110,7 @@ int main(int argc, char* argv[]) {
     {
         std::string filename;
         bool enable_debugging;
+
 
         bpo::options_description desc("Allowed options");
         desc.add_options()
@@ -181,7 +169,6 @@ int main(int argc, char* argv[]) {
             settings.set<Settings::AttachToProcessOnStartup>(vm["attach_to_process"].as<unsigned>());
         }
         settings.set<Settings::AppMemType>(vm["appmemtype"].as<unsigned>());
-        settings.set<Settings::CPUEngineTag>(Settings::CPUEngine::NARMive);
         if (vm["render_on_cpu"].as<bool>()) {
             settings.set<Settings::RendererTag>(Settings::Renderer::Software);
             if (!vm.count("shader_engine")) {
@@ -648,6 +635,7 @@ if (bootstrap_nand) // Experimental system bootstrapper
                 break;
             }
 
+
             case CustomEvents::CirclePadPosition:
             {
                 float x, y;
@@ -833,7 +821,6 @@ quit_application_loop:
         display->present_queue.waitIdle();
         display->device->waitIdle();
 
-        frontend_logger->info("Shutting down DSP JIT...");
 
         session.reset();
     }

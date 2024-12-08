@@ -27,6 +27,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Prefer Conan-provided packages over system ones
 set(CMAKE_FIND_PACKAGE_PREFER_CONFIG TRUE)
 
+
 # TODO: Move these flags into a "boost" cmake target
 add_definitions(-DBOOST_FILESYSTEM_NO_DEPRECATED -DBOOST_COROUTINES_NO_DEPRECATION_WARNING)
 

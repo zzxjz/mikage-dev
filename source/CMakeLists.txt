@@ -67,6 +67,7 @@ target_sources(mikage PRIVATE
                ui/key_database.cpp
                utility/simple_tcp.cpp)
 
+
 if (Pistache_FOUND)
     target_sources(mikage PRIVATE
                debug_server.cpp
@@ -86,13 +87,17 @@ if (STD_FILESYSTEM_LIBRARY)
     target_link_libraries(mikage PRIVATE ${STD_FILESYSTEM_LIBRARY})
 endif ()
 
+
+
 target_link_libraries(mikage PRIVATE Boost::boost Boost::context Boost::filesystem Boost::iostreams Boost::program_options Boost::thread)
 
 if (Pistache_FOUND)
     target_link_libraries(mikage PRIVATE Pistache::Pistache)
 endif()
 
+
 target_link_libraries(mikage PRIVATE SDL2::SDL2)
 
 target_link_libraries(mikage PRIVATE spdlog::spdlog)
 target_link_libraries(mikage PRIVATE Tracy::TracyClient)
+

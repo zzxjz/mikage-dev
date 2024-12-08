@@ -6,6 +6,7 @@
 #include "pica.hpp"
 #include "video_core/src/video_core/vulkan/renderer.hpp" // TODO: Get rid of this
 
+
 #include <framework/exceptions.hpp>
 #include <framework/formats.hpp>
 #include <framework/logging.hpp>
@@ -45,6 +46,7 @@
 #include "processes/news.hpp"
 #include "processes/pdn.hpp"
 #include "processes/ssl.hpp"
+
 
 #include "platform/ns.hpp"
 #include "platform/sm.hpp"
@@ -1046,6 +1048,7 @@ public:
                 continue;
             }
 
+
             GetLogger()->info("Launching FIRM title {:#x}", title_id);
             auto firm_file = HLE::PXI::FS::OpenNCCHSubFile(*this, info, 0, 1, std::basic_string_view<uint8_t>(exefs_section, sizeof(exefs_section)), nullptr);
             auto [offset, num_bytes] = firm_titles.at(title_id);
@@ -1069,6 +1072,7 @@ public:
                 }
             }
         }
+
 
         GetLogger()->info("{}FakeThread \"BootThread\" exiting", ThreadPrinter{*this});
         CallSVC(&OS::SVCExitThread);
@@ -1825,6 +1829,7 @@ EmuProcess::EmuProcess(OS& os, Interpreter::Setup& setup, uint32_t pid, std::sha
     case Settings::CPUEngine::NARMive:
         processor = Interpreter::CreateInterpreter(setup);
         break;
+
     }
 }
 
@@ -2190,6 +2195,7 @@ SVCFuture<OS::Result,uint32_t> OS::SVCControlProcessMemory(Thread& source, Proce
         ValidateContract(vaddr_opt);
         auto success = process.MapVirtualMemory(*paddr_opt, size, *vaddr_opt, permissions);
         ValidateContract(success);
+
 
         Reschedule(source.GetPointer());
         return MakeFuture(RESULT_OK, addr0);
@@ -4394,6 +4400,7 @@ SVCFuture<OS::Result,HandleTable::Entry<Process>> OS::SVCCreateProcess(Thread& s
 
     process->name = codeset->app_name;
 
+
     // Finally, add the new process to the global process list
     RegisterProcess(process);
 
@@ -5236,6 +5243,7 @@ SVCCallbackType OS::SVCRaw(Thread& source, unsigned svc_id, Interpreter::Executi
 
         return EncodeFuture(SVCControlProcessMemory(source, process, addr0, addr1, size, operation, permissions));
     }
+
 
     case 0x73: // CreateCodeSet
     {
@@ -6253,9 +6261,11 @@ void OS::Run(std::shared_ptr<Interpreter::Setup> setup) {
             hle_titles["hid"].create = FakeProcessFactoryFor<FakeHID>;
         }
 
+
         if (!settings.get<Settings::UseNativeFS>()) {
             hle_titles["fs"].create = FakeProcessFactoryFor<FakeFS>;
         }
+
 
         hle_titles["act"].create = FakeProcessFactoryFor<FakeACT>;
         hle_titles["am"].create = FakeProcessFactoryFor<FakeAM>;

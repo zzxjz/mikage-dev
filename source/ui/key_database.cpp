@@ -54,8 +54,6 @@ KeyDatabase LoadKeyDatabase(spdlog::logger& logger, const std::filesystem::path&
             // Ignore
         } else if (line.starts_with("dlp") || line.starts_with("nfc")) {
             // Not currently used
-        } else {
-            logger.warn("Ignoring line in {}: {}", filename.string(), line);
         }
     }
 

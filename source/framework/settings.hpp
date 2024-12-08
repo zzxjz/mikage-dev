@@ -41,6 +41,7 @@ struct BootToHomeMenu : Config::BooleanOption<BootToHomeMenu> {
     static constexpr const char* name = "BootToHomeMenu";
 };
 
+
 // Use the native HID module upon OS startup
 struct UseNativeHID : Config::BooleanOption<UseNativeHID> {
     static constexpr const char* name = "UseNativeHID";
@@ -50,6 +51,7 @@ struct UseNativeHID : Config::BooleanOption<UseNativeHID> {
 struct UseNativeFS : Config::BooleanOption<UseNativeFS> {
     static constexpr const char* name = "UseNativeFS";
 };
+
 
 // Dump displayed frames to a series of binary files
 struct DumpFrames : Config::BooleanOption<DumpFrames> {

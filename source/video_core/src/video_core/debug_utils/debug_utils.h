@@ -131,6 +131,7 @@ public:
     Event active_breakpoint;
     bool at_breakpoint = false;
 
+
 private:
     /**
      * Private default constructor to make sure people always construct this through Construct()
