@@ -886,7 +886,8 @@ static std::tuple<Result, uint64_t> OpenArchive(FakeThread& thread, Context& con
     {
         // System SaveData stored on NAND
         // TODO: Should we verify that not more than 4 bytes have been given?
-        auto media_type = path.Read<uint32_t>(thread, 0);
+        // NOTE: Media type only considers the lowest byte. Services like CFG pass in garbage in the upper bytes.
+        auto media_type = path.Read<uint8_t>(thread, 0);
         auto archive = std::make_unique<ArchiveSystemSaveData>(settings, media_type);
         auto archive_handle = context.next_archive_handle++;
         context.archives.emplace(std::make_pair(archive_handle, std::move(archive)));
