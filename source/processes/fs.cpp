@@ -533,8 +533,9 @@ public:
 
 //        auto it = iter;
         uint32_t actual_entries = 0;
-        for (auto& entry : iter) {
-        // TODO: Merge with Entry defined by platform
+        while (iter != std::filesystem::directory_iterator{}) {
+            auto entry = *iter++;
+            // TODO: Merge with Entry defined by platform
             struct Entry {
                 uint16_t name_utf16[0x20c / 2];
                 uint8_t short_name[0xa]; // short 8.3 filename without extension
