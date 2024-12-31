@@ -376,7 +376,7 @@ public:
 
     /**
      * Retrieves a color or depth/stencil target from the given area, similar
-     * to PrepareRenderTarget, with less strict critera for reusing existing
+     * to PrepareRenderTarget, with less strict criteria for reusing existing
      * resources than the latter.
      *
      * This functions returns an existing render target if the general image
