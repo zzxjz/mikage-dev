@@ -166,13 +166,17 @@ int main(int argc, char* argv[]) {
         }
 
         // Prefer XDG_DATA_DIRS, then /usr/local/share, then /usr/share
-        auto data_dirs = std::string { getenv("XDG_DATA_DIRS") ? getenv("XDG_DATA_DIRS") : "/usr/local/share:/usr/share" };
+        auto xdg_data_dirs = getenv("XDG_DATA_DIRS");
+        auto data_dirs = std::string { (xdg_data_dirs && *xdg_data_dirs != 0) ? xdg_data_dirs : "/usr/local/share:/usr/share" };
         for (auto data_dir : data_dirs | ranges::views::split(':')) {
             auto candidate = ranges::to<std::string>(data_dir) + "/mikage";
             if (std::filesystem::exists(candidate)) {
                 settings.set<Settings::PathImmutableDataDir>(std::move(candidate));
                 break;
             }
+        }
+        if (!std::filesystem::exists(settings.get<Settings::PathImmutableDataDir>())) {
+            throw std::runtime_error("Immutable data directory does not exist. Re-run the install step");
         }
 
         auto fill_home_path = [](std::string path) {
