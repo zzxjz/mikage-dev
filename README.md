@@ -7,7 +7,7 @@ CMake and Conan 2 are required to build Mikage.
 * `cd build`
 * `conan install .. -of . --build=missing` (add `-s build_type=Debug` for Debug builds)
 * ``cmake -DCMAKE_BUILD_TYPE=Release .. -G Ninja -DCMAKE_PREFIX_PATH=`realpath .` ``
-* `ninja`
+* `ninja && sudo ninja install`
 
 Some dependencies may be provided by system packages instead of building them
 via Conan. To enable this behavior, add the following to your Conan profile

@@ -11,6 +11,7 @@ set(TITLES
     "000400db/00010302"
     "000400db/00016102")
 
+include(GNUInstallDirs)
 foreach(TITLE ${TITLES})
-    configure_file(${TITLE}/content/00000000.app ${CMAKE_BINARY_DIR}/data/${TITLE}/content/00000000.cxi COPYONLY)
+    install(FILES "${TITLE}/content/00000000.app" RENAME "00000000.cxi" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/mikage/nand/title/${TITLE}/content")
 endforeach()
