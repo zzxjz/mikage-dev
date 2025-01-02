@@ -360,8 +360,11 @@ void InstallCIA(std::filesystem::path content_dir, spdlog::logger& logger, const
         const auto& ncch = ret.contents[content_index];
         const auto& content_info = ret.tmd.content_infos.at(content_index);
 
-        std::ofstream out_file(content_dir / fmt::format("{:08x}.cxi", content_info.id));
-        out_file.write(reinterpret_cast<const char*>(ncch.data()), ncch.size());
+        {
+            std::ofstream out_file(content_dir / fmt::format("{:08x}.cxi", content_info.id));
+            out_file.write(reinterpret_cast<const char*>(ncch.data()), ncch.size());
+            // Close scope here to ensure data is flushed to disk
+        }
 
         // To simplify title launching, we always boot from 00000000.cxi currently.
         // Copy the main title to that location hence
