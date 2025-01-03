@@ -1,0 +1,3 @@
+build/*
+aes_keys.txt
+*.tracy

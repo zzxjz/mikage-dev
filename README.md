@@ -9,6 +9,8 @@ CMake and Conan 2 are required to build Mikage.
 * `cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release`
 * `ninja && sudo ninja install`
 
+NOTE: On Linux, Vulkan libraries are also required and will NOT be built by Conan.
+
 Some dependencies may be provided by system packages instead of building them
 via Conan. To enable this behavior, add the following to your Conan profile
 (`~/.conan2/profiles/default`):
@@ -62,3 +64,12 @@ be necessary to do this. Debuggers other than gdb may work but are untested.
 
 Processes running in the emulated kernel can be introspected through a simple
 debug console available via telnet on port 12347.
+
+## Profiling
+
+Mikage uses [Tracy](https://github.com/wolfpld/tracy) for profiling. To enable it,
+pass `-o enable_profiler=True` to `conan install` and rebuild Mikage.
+Get your Tracy server (often available from the system package manager) up and
+running and start listening for clients. Then launch Mikage and your server will 
+start recording. Each emulator frame will be captured containing the Tracy Zones
+that have been defined throughout Mikage's code. 
