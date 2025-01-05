@@ -3,7 +3,7 @@ from conan import ConanFile
 class MikageConan(ConanFile):
     name = "mikage"
     settings = "os", "compiler", "build_type", "arch"
-    generators = "CMakeDeps"
+    generators = ["CMakeDeps", "CMakeToolchain"]
 
     requires = [
         #"boost/1.79.0",
