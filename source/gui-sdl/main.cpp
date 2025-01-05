@@ -690,6 +690,9 @@ if (bootstrap_nand) // Experimental system bootstrapper
             continue;
         }
 
+        // Limit to ~60 FPS. This avoids starving the emulation thread when locking g_vulkan_queue_mutex
+        std::this_thread::sleep_for(std::chrono::milliseconds { 15 });
+
         // Process next frame from the emulation core, if any (and do so three times for each screen id... TODO: Find a nicer way of doing this)
         display->BeginFrame();
 
