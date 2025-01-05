@@ -89,6 +89,10 @@ public: // ... TODO
             throw std::runtime_error("Failed to query Vulkan extensions required by SDL");
         }
         extensions.push_back("VK_EXT_debug_report");
+#ifdef __APPLE__
+        // MoltenVK requires VK_KHR_portability_enumeration
+        extensions.push_back("VK_KHR_portability_enumeration");
+#endif
 
         return extensions;
     }

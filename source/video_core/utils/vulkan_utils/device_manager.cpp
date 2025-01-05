@@ -1,4 +1,5 @@
 #define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
+#define VK_ENABLE_BETA_EXTENSIONS // For vk::PhysicalDevicePortabilitySubsetFeaturesKHR
 
 #include "device_manager.hpp"
 
@@ -35,7 +36,12 @@ VulkanInstanceManager::VulkanInstanceManager(spdlog::logger& logger, const char*
         for (auto ext : required_instance_extensions) {
             logger.info("Requesting instance extension \"{}\"", ext);
         }
-        vk::InstanceCreateInfo info { vk::InstanceCreateFlagBits { }, &application_info,
+#ifdef __APPLE__
+        auto flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+#else
+        auto flags = vk::InstanceCreateFlagBits {};
+#endif
+        vk::InstanceCreateInfo info { flags, &application_info,
                                     static_cast<uint32_t>(std::size(enabled_layers)), enabled_layers.data(),
                                     static_cast<uint32_t>(std::size(required_instance_extensions)), required_instance_extensions.data() };
         return vk::createInstanceUnique(info);
@@ -151,6 +157,9 @@ VulkanDeviceManager::VulkanDeviceManager(VulkanInstanceManager& instance, spdlog
 
         std::vector<const char*> enabled_layers;
         std::vector<const char*> enabled_extensions = { "VK_KHR_swapchain" };
+#ifdef __APPLE__
+        enabled_extensions.push_back("VK_KHR_portability_subset");
+#endif
         bool debug_markers_enabled = false;
         if (enable_debug_exts || IsRenderDocActive()) {
             auto supported_extensions = physical_device.enumerateDeviceExtensionProperties();
@@ -176,12 +185,22 @@ VulkanDeviceManager::VulkanDeviceManager(VulkanInstanceManager& instance, spdlog
             logger.warn("Warning: GPU driver does not support logic operations.");
         }
 
-        vk::DeviceCreateInfo info { vk::DeviceCreateFlagBits { },
-                                    static_cast<uint32_t>(queue_info.size()), queue_info.data(),
-                                    static_cast<uint32_t>(enabled_layers.size()), enabled_layers.data(),
-                                    static_cast<uint32_t>(enabled_extensions.size()), enabled_extensions.data(),
-                                    &features };
-        return physical_device.createDeviceUnique(info);
+        vk::StructureChain<vk::DeviceCreateInfo, vk::PhysicalDevicePortabilitySubsetFeaturesKHR> info {
+            vk::DeviceCreateInfo {
+                vk::DeviceCreateFlagBits { },
+                static_cast<uint32_t>(queue_info.size()), queue_info.data(),
+                static_cast<uint32_t>(enabled_layers.size()), enabled_layers.data(),
+                static_cast<uint32_t>(enabled_extensions.size()), enabled_extensions.data(),
+                &features
+            },
+            {}
+        };
+#ifdef __APPLE__
+        info.get<vk::PhysicalDevicePortabilitySubsetFeaturesKHR>().constantAlphaColorBlendFactors = true;
+#else
+        info.unlink<vk::PhysicalDevicePortabilitySubsetFeaturesKHR>();
+#endif
+        return physical_device.createDeviceUnique(info.get<vk::DeviceCreateInfo>());
     });
 
     VULKAN_HPP_DEFAULT_DISPATCHER.init(*device);
