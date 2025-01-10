@@ -138,7 +138,10 @@ int main(int argc, char* argv[]) {
         bpo::variables_map vm;
         try {
             bpo::store(bpo::command_line_parser(argc, argv).options(desc).positional(p).run(), vm);
-
+            if (vm.count("help")) {
+                std::cout << desc << std::endl;
+                return 0;
+            }
             if (!vm.count("input") && !vm["launch_menu"].as<bool>())
                 throw bpo::required_option("input or launch_menu"); // TODO: Better string?
 
@@ -160,10 +163,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        if (vm.count("help")) {
-            std::cout << desc << std::endl;
-            return 0;
-        }
+
 
         // Prefer XDG_DATA_DIRS, then /usr/local/share, then /usr/share
         auto xdg_data_dirs = getenv("XDG_DATA_DIRS");
