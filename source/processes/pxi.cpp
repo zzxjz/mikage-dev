@@ -25,6 +25,7 @@
 #include <sstream>
 
 #include <fmt/ostream.h>
+#include <fmt/ranges.h>
 
 std::vector<uint64_t>* nand_titles = nullptr;
 
