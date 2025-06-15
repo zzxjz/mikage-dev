@@ -184,7 +184,7 @@ public:
     FileSaveData(FSContext& context, const ValidatedHostPath& path, bool create, bool implicit_resize)
         : implicit_resize(implicit_resize) {
         if (!std::filesystem::exists(path.path.parent_path())) {
-            context.logger.info("Parent directory {} does not exist, returning error", path.path.parent_path());
+            context.logger.info("Parent directory {} does not exist, returning error", path.path.parent_path().string());
             throw IPC::IPCError { 0, 0xc8804471 };
         }
 
@@ -192,7 +192,7 @@ public:
 
         if (!std::filesystem::exists(path)) {
             if (create) {
-                context.logger.info("Implicitly creating file at {}", path.path);
+                context.logger.info("Implicitly creating file at {}", path.path.string());
                 // Create the file by opening and then closing it. This is done in a separate step so that we don't "accidentally" end up in append mode
                 output_file.open(path.path, std::ios::out);
                 output_file.close();
@@ -203,7 +203,7 @@ public:
 
         if (!std::filesystem::is_regular_file(path)) {
             test_mode ? throw IPC::IPCError { 0, 0xe0c04702 }
-                      : throw std::runtime_error(fmt::format("Attempted to create FileSaveData from path {} that is not a file", path.path));
+                      : throw std::runtime_error(fmt::format("Attempted to create FileSaveData from path {} that is not a file", path.path.string()));
         }
 
         output_file.open(path.path, std::ios::binary | std::ios::out | std::ios::in);
@@ -1083,7 +1083,7 @@ public:
         const std::string savegame_path = GetBaseFilePath(context, saveid);
 
         thread.GetLogger()->info("{}ArchiveSystemSaveDataForSaveId opening file \"{}{}\"",
-                                 ThreadPrinter{thread}, savegame_path, path.path);
+                                 ThreadPrinter{thread}, savegame_path, path.path.string());
 
         try {
             return { RESULT_OK, std::make_unique<FileSaveData>(context, path, ((open_flags & 0x4) != 0), true /* TODO: Implicit resize needed? */) };
@@ -1095,7 +1095,7 @@ public:
     }
 
     virtual Result DeleteFile(FakeThread& thread, FSContext&, uint32_t /*transaction*/, const ValidatedPath& path) override {
-        thread.GetLogger()->info("Deleting host file \"{}\"", path.path);
+        thread.GetLogger()->info("Deleting host file \"{}\"", path.path.string());
 
         if (!std::filesystem::remove(path.path)) {
             return ResultFileNotFound();
@@ -1296,7 +1296,7 @@ protected:
             return ResultFileNotFound();
         }
 
-        thread.GetLogger()->warn("Deleting file: {}", path.path);
+        thread.GetLogger()->warn("Deleting file: {}", path.path.string());
 
         std::filesystem::remove(path);
 
@@ -1330,10 +1330,10 @@ protected:
     }
 
     Result DeleteDirectory(FakeThread& thread, FSContext&, uint32_t, bool recursive, const ValidatedPath& path) override {
-        thread.GetLogger()->warn("Deleting directory{}: {}", recursive ? " recursively" : "", path.path);
+        thread.GetLogger()->warn("Deleting directory{}: {}", recursive ? " recursively" : "", path.path.string());
 
         if (!std::filesystem::exists(path.path)) {
-            thread.GetLogger()->warn("Directory {} does not exist", path.path);
+            thread.GetLogger()->warn("Directory {} does not exist", path.path.string());
 
             return test_mode ? ResultDirectoryNotFound()
                              : throw std::runtime_error("Called DeleteDirectory on nonexisting directory");
@@ -1433,7 +1433,7 @@ public:
         if (!std::filesystem::is_directory(path)) {
             throw std::runtime_error("Tried to remove extdata file that somehow is not a directory");
         }
-        thread.GetLogger()->warn("Deleting extdata directory {}", path);
+        thread.GetLogger()->warn("Deleting extdata directory {}", path.string());
         std::filesystem::remove_all(path);
         return RESULT_OK;
     }
@@ -1598,10 +1598,10 @@ public:
     }
 
     Result DeleteFile(FakeThread& thread, FSContext&, uint32_t /*transaction*/, const ValidatedPath& path) override {
-        thread.GetLogger()->warn("Deleting file: {}", path.path);
+        thread.GetLogger()->warn("Deleting file: {}", path.path.string());
 
         if (!std::filesystem::exists(path)) {
-            thread.GetLogger()->warn("File {} does not exist", path.path);
+            thread.GetLogger()->warn("File {} does not exist", path.path.string());
 
             return test_mode ? ResultFileNotFound()
                              : throw std::runtime_error("Called DeleteFile on nonexisting file");
@@ -1635,10 +1635,10 @@ public:
     }
 
     Result DeleteDirectory(FakeThread& thread, FSContext&, uint32_t /*transaction*/, bool recursive, const ValidatedPath& path) override {
-        thread.GetLogger()->warn("Deleting directory{}: {}", recursive ? " recursively" : "", path.path);
+        thread.GetLogger()->warn("Deleting directory{}: {}", recursive ? " recursively" : "", path.path.string());
 
         if (!std::filesystem::exists(path)) {
-            thread.GetLogger()->warn("Directory {} does not exist", path.path);
+            thread.GetLogger()->warn("Directory {} does not exist", path.path.string());
 
             // NOTE: Steel Diver hits this case during startup if the "sdmc:/Nintendo 3DS" folder does not exist
             return ResultDirectoryNotFound();
