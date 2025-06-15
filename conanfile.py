@@ -45,9 +45,9 @@ class MikageConan(ConanFile):
             self.options["libxml2"].zlib = False
 
     def requirements(self):
-        # Pistache does not build on clang
-        if self.settings.os == "Linux" and self.settings.compiler != "clang":
-            self.requires("pistache/cci.20201127")
+        # Conan does not support building Pistache on Windows and Android
+        if self.settings.os != "Windows" and self.settings.os != "Android":
+            self.requires("pistache/0.4.25")
 
         if self.settings.os == "Linux":
             self.requires("libunwind/1.8.0")
