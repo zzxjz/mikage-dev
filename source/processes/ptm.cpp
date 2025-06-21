@@ -366,8 +366,9 @@ void FakePTM::CommandHandler_gets(FakeThread& thread, const IPC::CommandHeader& 
         thread.WriteTLS(0x8c, 0);
         break;
 
-    default:
-        throw std::runtime_error(fmt::format("Unknown PTM command request with header {:#010x}", header.raw));
+    default: // May be a ptm:u command
+        FakePTM::CommandHandler(thread, header);
+        break;
     }
 }
 
