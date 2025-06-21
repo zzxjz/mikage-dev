@@ -9,7 +9,7 @@ class MikageConan(ConanFile):
         #"boost/1.79.0",
         "boost/1.84.0",
         "spdlog/1.15.3",
-        "cryptopp/8.5.0",
+        "cryptopp/8.9.0",
         "sdl/2.30.7", # 2.0.18 fixed swapped X/Y buttons on Switch Pro Controller
         "range-v3/0.12.0",
         "catch2/2.13.7",
