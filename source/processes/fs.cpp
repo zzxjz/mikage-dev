@@ -1130,22 +1130,25 @@ public:
 
 class ArchiveSaveDataProvider {
     // Path to save data that is considered "created" but not "formatted"
-    std::string unformatted_path;
+    std::filesystem::path unformatted_path;
 
-    // Path to save data that is considered both "created" and "formatted"
-    std::string formatted_path;
+    // Path to save data (VirtualDirectory for extdata) that is considered both "created" and "formatted"
+    std::filesystem::path formatted_path;
 
     // If true, writes past the end of file should implicitly resize the file
     bool implicit_resize;
+
+    // If true, the save data is treated like extdata
+    bool is_ext_data;
 
     std::filesystem::path FormatInfoPath() const {
         return std::filesystem::path { unformatted_path } / "metadata";
     }
 
 public:
-    ArchiveSaveDataProvider(std::string unformatted_path, std::string formatted_subpath, bool implicit_resize)
-        : unformatted_path(std::move(unformatted_path)), formatted_path(this->unformatted_path + "/" + std::move(formatted_subpath)),
-        implicit_resize(implicit_resize) {
+    ArchiveSaveDataProvider(std::string unformatted_path, std::string_view formatted_subpath, bool implicit_resize, bool is_ext_data)
+        : unformatted_path(std::move(unformatted_path)), formatted_path({this->unformatted_path / std::move(formatted_subpath)}),
+        implicit_resize(implicit_resize), is_ext_data(is_ext_data) {
     }
 
     bool IsCreated() const {
@@ -1158,7 +1161,7 @@ public:
 
     void Create() const {
         if (IsCreated()) {
-            throw std::runtime_error(fmt::format("Create() called on save data file \"{}\" that already exists", unformatted_path));
+            throw std::runtime_error(fmt::format("Create() called on save data file \"{}\" that already exists", unformatted_path.string()));
         }
         EnsureCreated();
     }
@@ -1170,20 +1173,25 @@ public:
 
     void Format(const ArchiveFormatInfo& format_info) const {
         if (!IsCreated()) {
-            throw std::runtime_error(fmt::format("Format() called on save data file \"{}\" that does not exist", unformatted_path));
+            throw std::runtime_error(fmt::format("Format() called on save data file \"{}\" that does not exist", unformatted_path.string()));
         }
         if (IsFormatted()) {
             // TODO: Mario Kart 7 seems to hit this
             // TODO: Super Street Fighter Demo seems to hit this
-//            throw std::runtime_error(fmt::format("Format() called on save data file \"{}\" that is already formatted", formatted_path));
+//            throw std::runtime_error(fmt::format("Format() called on save data file \"{}\" that is already formatted", unformatted_path.string()));
         }
         EnsureFormatted(format_info);
     }
 
     void EnsureFormatted(const ArchiveFormatInfo& format_info) const {
-        std::filesystem::create_directories(formatted_path);
+        if (is_ext_data) {
+            std::filesystem::create_directory(unformatted_path / "boss");
+            std::filesystem::create_directory(unformatted_path / "user");
+        } else {
+            std::filesystem::create_directory(formatted_path);
+        }
 
-        std::ofstream metadata(FormatInfoPath());
+        std::ofstream metadata(FormatInfoPath(), std::ios::binary);
 
         // TODO: Use serialization interface
         metadata.write(reinterpret_cast<const char*>(&format_info), 3 * sizeof(uint32_t));
@@ -1193,7 +1201,7 @@ public:
 
     ArchiveFormatInfo ReadFormatInfo() const {
         if (!IsFormatted()) {
-            throw std::runtime_error(fmt::format("ReadFormatInfo() called on save data file \"{}\" that has not been formatted", formatted_path));
+            throw std::runtime_error(fmt::format("ReadFormatInfo() called on save data file \"{}\" that has not been formatted", formatted_path.string()));
         }
 
         std::ifstream metadata(FormatInfoPath());
@@ -1227,7 +1235,7 @@ public:
         return std::filesystem::absolute(base_path / std::move(path));
     }
 
-    std::string_view GetFormattedRootPath() const {
+    const std::filesystem::path& GetFormattedRootPath() const {
         return formatted_path;
     }
 
@@ -1362,7 +1370,7 @@ public:
 
     static ArchiveSaveDataProvider GetProvider(FSContext& context, ProgramInfo& program_info) {
         const bool implicit_resize = true;
-        return ArchiveSaveDataProvider(BuildBasePath(context, program_info), "00000001.sav.extracted", implicit_resize);
+        return ArchiveSaveDataProvider(BuildBasePath(context, program_info), "00000001.sav.extracted", implicit_resize, false);
     }
 
     static std::string BuildBasePath(FSContext& context, const ProgramInfo& program_info) {
@@ -1395,24 +1403,38 @@ public:
  */
 class ArchiveExtSaveData : public ArchiveSaveDataBase {
 public:
+    enum VirtualDirectory {
+        Root     = 0,
+        User     = 1,
+        SpotPass = 2,
+    };
+
     ArchiveExtSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info, bool is_shared, bool is_spotpass) :
-        ArchiveSaveDataBase(GetProvider(context, info, is_shared, is_spotpass), info.media_type) {
+        ArchiveSaveDataBase(GetProvider(context, info, is_shared, is_spotpass ? VirtualDirectory::SpotPass : VirtualDirectory::User), info.media_type) {
     }
 
-    static ArchiveSaveDataProvider GetProvider(FSContext& context, const ExtSaveDataInfo& info, bool is_shared, bool is_spotpass) {
-        if (is_spotpass) {
-            // Uses /boss subdirectory rather than /user
-            throw std::runtime_error("SpotPass extdata not supported, yet");
-        }
+    ArchiveExtSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info, bool is_shared) :
+        ArchiveSaveDataBase(GetProvider(context, info, is_shared, VirtualDirectory::Root), info.media_type) {
+    }
 
+    static ArchiveSaveDataProvider GetProvider(FSContext& context, const ExtSaveDataInfo& info, bool is_shared, VirtualDirectory directory) {
         const bool implicit_resize = false;
-        return ArchiveSaveDataProvider(BuildBasePath(context, info, is_shared, is_spotpass), "user", implicit_resize);
+        const std::array<const std::string, 3> subpaths = { "", "user", "boss" };
+        return ArchiveSaveDataProvider(BuildBasePath(context, info, is_shared), subpaths.at(directory), implicit_resize, true);
+    }
+
+    static std::filesystem::path GetExtDataRootDirectory(FSContext& context, Platform::FS::MediaType media_type) {
+        if (media_type == Platform::FS::MediaType::NAND) {
+            return GetRootDataDirectory(context.settings) / fmt::format("data/{:016x}/extdata", GetId0(context));
+        } else {
+            return HostSdmcDirectory(context.settings) / fmt::format("Nintendo 3DS/{:016x}/{:016x}/extdata", GetId0(context), GetId1(context));
+        }
     }
 
     // For FSUser::CreateExtSaveData
-    static Result CreateSaveData(FakeThread&, FSContext& context, const ExtSaveDataInfo& info, uint32_t max_directories, uint32_t max_files, bool is_shared) {
+    static Result CreateSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info, uint32_t max_directories, uint32_t max_files, IPC::MappedBuffer smdh_icon, bool is_shared) {
         // Note FSUser::CreateExtSaveData is idempotent: Calling it on an already created save data file is not an error
-        auto provider = GetProvider(context, info, is_shared, false);
+        auto provider = GetProvider(context, info, is_shared, VirtualDirectory::Root);
         provider.EnsureCreated();
 
         // ExtSaveData is formatted automatically
@@ -1426,7 +1448,7 @@ public:
     // For FSUser::DeleteExtSaveData
     // TODO: Move to ArchiveSaveDataProvider
     static Result DeleteSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info, bool is_shared) {
-        std::filesystem::path path = BuildBasePath(context, info, is_shared, false);
+        std::filesystem::path path = BuildBasePath(context, info, is_shared);
         if (!std::filesystem::exists(path)) {
             return test_mode ? 0xc8804478 : throw std::runtime_error("Tried to delete extdata that doesn't exist");
         }
@@ -1439,7 +1461,7 @@ public:
     }
 
 private:
-    static std::string BuildBasePath(FSContext& context, ExtSaveDataInfo info, bool is_shared, bool is_spotpass) {
+    static std::string BuildBasePath(FSContext& context, ExtSaveDataInfo info, bool is_shared) {
         if (is_shared && (info.media_type != Platform::FS::MediaType::NAND && info.media_type != Platform::FS::MediaType::SD)) {
             throw std::runtime_error("Shared extdata must be stored on NAND or SD");
         }
@@ -1460,11 +1482,7 @@ private:
             uint32_t extdata_id_low = info.save_id & 0xffffffff;
             uint32_t extdata_id_high = info.save_id >> 32;
 
-            if (info.media_type == Platform::FS::MediaType::NAND) {
-                return (GetRootDataDirectory(context.settings) / fmt::format("data/{:016x}/extdata/{:08x}/{:08x}", GetId0(context), extdata_id_high, extdata_id_low)).string();
-            } else {
-                return (HostSdmcDirectory(context.settings) / fmt::format("Nintendo 3DS/{:016x}/{:016x}/extdata/{:08x}/{:08x}", GetId0(context), GetId1(context), extdata_id_high, extdata_id_low)).string();
-            }
+            return (GetExtDataRootDirectory(context, info.media_type) / fmt::format("{:08x}/{:08x}", extdata_id_high, extdata_id_low)).string();
         });
     }
 
@@ -2563,6 +2581,7 @@ OpenArchive(FakeThread& thread, FSContext& context, ProcessId process_id, uint32
 
     case 0x00000006:
     case 0x00000007:
+    case 0x12345678:
     {
         // NOTE: Home Menu uses this with mediatype 00000000 and extdata id 000000e000000000.
         //       Apparently, when we return success in this case, Home Menu boots into the System Transfer title (CARDBOAR)
@@ -2573,14 +2592,9 @@ OpenArchive(FakeThread& thread, FSContext& context, ProcessId process_id, uint32
         auto extdata_id = Serialization::LoadVia<uint64_t>(thread, path.addr + 4);
         auto extdata_info = ExtSaveDataInfo { static_cast<Platform::FS::MediaType>(media_type), {}, extdata_id, 0 };
 
-        bool is_shared = (archive_id == 0x7);
-        auto archive = std::unique_ptr<Archive>(new ArchiveExtSaveData(thread, context, extdata_info, is_shared, false));
-        return std::make_tuple(RESULT_OK, std::move(archive));
-    }
-
-    case 0x12345678:
-    {
-        auto archive = std::unique_ptr<Archive>(new ArchiveDummy(thread, context, path_type, path, archive_id));
+        bool is_spotpass = (archive_id == 0x12345678);
+        bool is_shared = is_spotpass ? extdata_info.media_type == Platform::FS::MediaType::NAND : (archive_id == 0x7);
+        auto archive = std::unique_ptr<Archive>(new ArchiveExtSaveData(thread, context, extdata_info, is_shared, is_spotpass));
         return std::make_tuple(RESULT_OK, std::move(archive));
     }
 
@@ -2759,7 +2773,7 @@ std::tuple<OS::Result, IPC::MappedBuffer>
 FakeFS::HandleCreateExtSaveData(FakeThread& thread, ProcessId, const Platform::FS::ExtSaveDataInfo& info,
                                 uint32_t max_directories, uint32_t max_files, uint64_t, uint32_t,
                                 IPC::MappedBuffer input_smdh) {
-    auto result = ArchiveExtSaveData::CreateSaveData(thread, *this, info, max_directories, max_files, true);
+    auto result = ArchiveExtSaveData::CreateSaveData(thread, *this, info, max_directories, max_files, input_smdh, true);
     return std::make_tuple(result, input_smdh);
 }
 
