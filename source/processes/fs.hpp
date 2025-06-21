@@ -202,6 +202,9 @@ public: // TODO: Un-public-ize
                                                    uint64_t save_id, uint32_t smdh_size, uint32_t num_directories, uint32_t num_files,
                                                    IPC::MappedBuffer smdh);
     std::tuple<OS::Result> HandleDeleteExtSaveData(FakeThread& thread, ProcessId session_id, const Platform::FS::ExtSaveDataInfo& info);
+    std::tuple<OS::Result, uint32_t, IPC::MappedBuffer> HandleEnumerateExtSaveData(FakeThread&, ProcessId, uint32_t, uint32_t media_type,
+                                                                                   uint32_t id_entry_size, uint32_t is_shared,
+                                                                                   IPC::MappedBuffer output_ids);
     std::tuple<OS::Result> HandleCreateSystemSaveData(FakeThread& thread, ProcessId session_id, uint32_t media_type, uint32_t save_id,
                                                       uint32_t total_size, uint32_t block_size, uint32_t num_directories,
                                                       uint32_t num_files, uint32_t unk1, uint32_t unk2, uint32_t unk3);

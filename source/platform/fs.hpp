@@ -409,6 +409,21 @@ using DeleteExtSaveData = IPC::IPCCommand<0x852>::add_serialized<ExtSaveDataInfo
 
 /**
  * Inputs:
+ * - Output Extdata ID buffer size
+ * - Media Type (and other unknown flags)
+ * - Extdata ID size (4 or 8)
+ * - Is Shared
+ * - Output Extdata ID buffer
+ *
+ * Error codes:
+ * - 0xe0c046fa: Gamecard extdata is not supported
+ * - 0xe0e046bc: Invalid buffer size or Extdata ID size
+ */
+using EnumerateExtSaveData = IPC::IPCCommand<0x855>::add_uint32::add_uint32::add_uint32::add_uint32::add_buffer_mapping_write
+                                ::response::add_uint32::add_buffer_mapping_write;
+
+/**
+ * Inputs:
  * - Media type (and other things?)
  * - Save id
  * - Total size

@@ -2180,6 +2180,10 @@ decltype(HLE::OS::ServiceHelper::SendReply) FakeFS::UserCommandHandler(FakeThrea
         IPC::HandleIPCCommand<DeleteExtSaveData>(BindMemFn(&FakeFS::HandleDeleteExtSaveData, this), thread, thread, session_pid);
         break;
 
+    case EnumerateExtSaveData::id:
+        IPC::HandleIPCCommand<EnumerateExtSaveData>(BindMemFn(&FakeFS::HandleEnumerateExtSaveData, this), thread, thread, session_pid);
+        break;
+
     case CreateSystemSaveData::id:
         IPC::HandleIPCCommand<CreateSystemSaveData>(BindMemFn(&FakeFS::HandleCreateSystemSaveData, this), thread, thread, session_pid);
         break;
@@ -2782,6 +2786,52 @@ FakeFS::HandleCreateExtSaveData(FakeThread& thread, ProcessId, const Platform::F
                                 IPC::MappedBuffer input_smdh) {
     auto result = ArchiveExtSaveData::CreateSaveData(thread, *this, info, max_directories, max_files, input_smdh, true);
     return std::make_tuple(result, input_smdh);
+}
+
+std::tuple<OS::Result, uint32_t, IPC::MappedBuffer>
+FakeFS::HandleEnumerateExtSaveData( FakeThread& thread, ProcessId, uint32_t, uint32_t media_type,
+                                    uint32_t id_entry_size, uint32_t is_shared, IPC::MappedBuffer output_ids) {
+    if (media_type == 0 && !is_shared) {
+        throw Mikage::Exceptions::Invalid("NAND extdata must be shared");
+    } else if (media_type == 1 && is_shared) {
+        throw Mikage::Exceptions::Invalid("SD extdata must not be shared");
+    } else if (media_type == 2) {
+        throw Mikage::Exceptions::Invalid("Gamecards cannot store extdata");
+    }
+
+    if ((id_entry_size != 4 && id_entry_size != 8) || output_ids.size % id_entry_size) {
+        throw Mikage::Exceptions::Invalid("Invalid extdata ID size or misaligned ID buffer");
+    }
+
+    auto extdata_id_high = (media_type == 0) ? 0x00048000 : 0x00000000;
+    auto extdata_high_dir = ArchiveExtSaveData::GetExtDataRootDirectory(*this, static_cast<MediaType>(media_type)) / ((media_type == 0) ? "00048000" : "00000000");
+
+    uint32_t num_written = 0;
+    const uint32_t max_entries = output_ids.size / id_entry_size;
+    for (const auto& extdata_low_dir : std::filesystem::directory_iterator { extdata_high_dir }) {
+        if (max_entries == num_written) {
+            break;
+        }
+
+        std::string low_id_filename = extdata_low_dir.path().filename();
+        uint32_t extdata_id_low = 0;
+        auto result = std::from_chars(low_id_filename.data(), low_id_filename.data() + 8, extdata_id_low, 16);
+        if (result.ptr != low_id_filename.data() + 8) {
+            throw std::runtime_error(fmt::format("Could not parse extdata low ID from {}", extdata_low_dir.path().string()));
+        }
+
+        uint64_t extdata_id = (uint64_t)extdata_id_high << 32 | extdata_id_low;
+        if (id_entry_size == 4) {
+            thread.WriteMemory32(output_ids.addr + (num_written * 4), extdata_id);
+        } else {
+            thread.WriteMemory32(output_ids.addr + (num_written * 8), extdata_id);
+            thread.WriteMemory32(output_ids.addr + (num_written * 8) + 4, extdata_id >> 32);
+        }
+
+        ++num_written;
+    }
+
+    return std::make_tuple(RESULT_OK, num_written, output_ids);
 }
 
 std::tuple<OS::Result, IPC::MappedBuffer>
