@@ -783,6 +783,12 @@ void FakeDSP::OnIPCRequest(FakeThread& thread, Handle sender, const IPC::Command
         thread.WriteTLS(0x88, 0); // not inserted
         break;
 
+    // ForceHeadphoneOut
+    case 0x20:
+        thread.WriteTLS(0x80, IPC::CommandHeader::Make(0x20, 1, 0).raw);
+        thread.WriteTLS(0x84, RESULT_OK);
+        break;
+
     default:
         // TODO: Throw and catch IPCError instead
         throw std::runtime_error(fmt::format("Unknown DSP IPC request {:#x}", header.command_id.Value()));
