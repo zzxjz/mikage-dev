@@ -1442,6 +1442,13 @@ public:
         const bool duplicate_data = false; // TODO: Verify this is the returned value
         provider.EnsureFormatted(ArchiveFormatInfo { size, max_directories, max_files, duplicate_data });
 
+        // Write SMDH icon
+        std::filesystem::path base_path = BuildBasePath(context, info, is_shared);
+        std::ofstream icon(base_path / "icon", std::ios::binary);
+        for (uint32_t i = 0; i < smdh_icon.size; ++i) {
+            icon << thread.ReadMemory(smdh_icon.addr + i);
+        }
+
         return RESULT_OK;
     }
 
