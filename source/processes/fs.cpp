@@ -2235,6 +2235,18 @@ decltype(HLE::OS::ServiceHelper::SendReply) FakeFS::UserCommandHandler(FakeThrea
         thread.WriteTLS(0x88, 0);
         break;
 
+    case 0x87d: // GetNumSeeds (HOME Menu)
+        thread.WriteTLS(0x80, IPC::CommandHeader::Make(0, 2, 0).raw);
+        thread.WriteTLS(0x84, RESULT_OK);
+        thread.WriteTLS(0x88, 0);
+        break;
+
+    case 0x883: // GetNumTitleTags (HOME Menu)
+        thread.WriteTLS(0x80, IPC::CommandHeader::Make(0, 2, 0).raw);
+        thread.WriteTLS(0x84, RESULT_OK);
+        thread.WriteTLS(0x88, 0);
+        break;
+
     default:
         throw Mikage::Exceptions::NotImplemented("Unknown FS service command with header {:#010x}", header.raw);
     }
