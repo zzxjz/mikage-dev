@@ -32,6 +32,11 @@ static auto NEWSSCommandHandler(FakeNEWS& context, FakeThread& thread, Platform:
         thread.WriteTLS(0x88, 0);
         break;
 
+    case 0x13: // WriteNewsDBSavedata
+        thread.WriteTLS(0x80, IPC::CommandHeader::Make(0, 1, 0).raw);
+        thread.WriteTLS(0x84, RESULT_OK);
+        break;
+
     case 0x14: // Unknown, returns at least one uint32_t value in addition to the result
         thread.WriteTLS(0x80, IPC::CommandHeader::Make(0, 2, 0).raw);
         thread.WriteTLS(0x84, RESULT_OK);
