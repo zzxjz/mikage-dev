@@ -58,7 +58,7 @@ You'll need to `source conanrun.sh` to set up library directories.
 * WASD keys: Circle pad
 * Backspace: HOME (press twice to power down)
 * Q key: L
-* E key: L
+* E key: R
 * IJKL keys: D-pad
 
 ## Debugging
@@ -78,6 +78,6 @@ debug console available via telnet on port 12347.
 Mikage uses [Tracy](https://github.com/wolfpld/tracy) for profiling. To enable it,
 pass `-o enable_profiler=True` to `conan install` and rebuild Mikage.
 Get your Tracy server (often available from the system package manager) up and
-running and start listening for clients. Then launch Mikage and your server will 
+running and start listening for clients. Then launch Mikage and your server will
 start recording. Each emulator frame will be captured containing the Tracy Zones
-that have been defined throughout Mikage's code. 
+that have been defined throughout Mikage's code.
