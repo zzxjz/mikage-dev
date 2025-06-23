@@ -310,15 +310,6 @@ if (bootstrap_nand) // Experimental system bootstrapper
         std::filesystem::copy(  settings.get<Settings::PathImmutableDataDir>() + "/nand/title", content_dir,
                                 std::filesystem::copy_options::skip_existing | std::filesystem::copy_options::recursive);
 
-        // Initial system setup requires title 0004001000022400 to be present.
-        // Normally, this is the Camera app, which isn't bundled in game update
-        // partitions. Since the setup only reads the ExeFS icon that aren't
-        // specific to the Camera app (likely to perform general checks), we
-        // use the Download Play app as a drop-in replacement if needed.
-        if (!std::filesystem::exists(content_dir / "00040010/00022400")) {
-            std::filesystem::copy(content_dir / "00040010/00022100", content_dir / "00040010/00022400", std::filesystem::copy_options::recursive);
-        }
-
         std::filesystem::create_directories(content_dir / "ro/sys");
         std::filesystem::create_directories(content_dir / "rw/sys");
         std::filesystem::create_directories(content_dir / "twlp");

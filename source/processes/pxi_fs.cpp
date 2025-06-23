@@ -605,8 +605,25 @@ protected:
             throw Mikage::Exceptions::Invalid("Invalid sub file type {}", sub_file_type);
         }
 
-        auto sub_file = OpenNCCHSubFile(thread, program_info, content_id, sub_file_type, std::basic_string_view<uint8_t> { path.data() + 0xc, 8 }, gamecard);
-        return std::make_pair(RESULT_OK, std::move(sub_file));
+        try {
+            auto sub_file = OpenNCCHSubFile(thread, program_info, content_id, sub_file_type, std::basic_string_view<uint8_t> { path.data() + 0xc, 8 }, gamecard);
+            return std::make_pair(RESULT_OK, std::move(sub_file));
+        } catch (const std::runtime_error& err) {
+            if (std::string_view { err.what() }.starts_with("Tried to access non-existing title")) {
+                // Report "not found" for some specific titles that may be
+                // probed by system titles but which won't be present after
+                // NAND bootstrap from gamecard update partitions.
+                // 0x4001000022400: Camera app, probed during initial system setup
+                // 0x4003000009d02: Internet Browser, probed by HOME Menu on system version 9.2.0
+                // 0x400300000ba02: In-app Miiverse posting applet, probed by HOME Menu on system versions >= 10.5.0
+                if (program_info.program_id == 0x4001000022400 ||
+                    program_info.program_id == 0x4003000009d02 ||
+                    program_info.program_id == 0x400300000ba02) {
+                    return std::make_pair(0xc8804478, std::unique_ptr<File> { });
+                }
+            }
+            throw;
+        }
     }
 
 public:
@@ -676,8 +693,7 @@ static std::tuple<Result, uint64_t> OpenFile(FakeThread& thread, Context& contex
     std::unique_ptr<File> file;
     std::tie(result,file) = archive->OpenFile(thread, common_path);
     if (result != RESULT_OK) {
-        thread.GetLogger()->error("Failed to get file open handler");
-        thread.CallSVC(&OSImpl::SVCBreak, OSImpl::BreakReason::Panic);
+        return std::make_tuple(result, 0);
     }
 
     // TODO: Respect flags & ~0x4 ... in particular, write/read-only!
