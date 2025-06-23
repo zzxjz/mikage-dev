@@ -13,8 +13,6 @@ class MikageConan(ConanFile):
         "sdl/2.30.7", # 2.0.18 fixed swapped X/Y buttons on Switch Pro Controller
         "range-v3/0.12.0",
         "catch2/2.13.7",
-        "glslang/1.3.268.0",
-        "spirv-tools/1.3.268.0",
         "tracy/0.11.1",
         "xxhash/0.8.0",
         "fmt/11.2.0",
@@ -53,7 +51,13 @@ class MikageConan(ConanFile):
             self.requires("libunwind/1.8.0")
 
         if self.settings.os == "Macos":
+            self.requires("glslang/1.3.268.0")
+            self.requires("spirv-tools/1.3.268.0")
             self.requires("vulkan-loader/1.3.268.0", force=True)
             self.requires("spirv-cross/1.3.268.0", force=True) # for moltenvk
             self.requires("moltenvk/1.2.2", force=True)
             self.requires("vulkan-headers/1.3.268.0", force=True) # must be a direct dependency to avoid homebrew headers from being pulled in
+        else:
+            # More recent version required for GCC 15 build fixes
+            self.requires("glslang/1.4.313.0")
+            self.requires("spirv-tools/1.4.313.0")
