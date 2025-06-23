@@ -14,7 +14,7 @@ NOTE: On Linux, Vulkan libraries are also required and will NOT be built by Cona
 Some dependencies may be provided by system packages instead of building them
 via Conan. To enable this behavior, add the following to your Conan profile
 (`~/.conan2/profiles/default`):
-```
+```ini
 [platform_requires]
 boost/1.80.0
 cryptopp/8.5.0
@@ -22,6 +22,14 @@ sdl/2.0.20
 range-v3/0.11.0
 catch2/2.13.7
 libunwind/1.8.0
+```
+
+### GCC 15 and newer
+
+Due to a change in default compilation flags in GCC 15, the `conan` step above may fail. If this happens, append the following two lines to your Conan profile (`~/.conan2/profiles/default`) and try again:
+```ini
+[conf]
+tools.build:cflags=["-std=gnu17"]
 ```
 
 ## Usage
