@@ -1409,18 +1409,18 @@ public:
         SpotPass = 2,
     };
 
-    ArchiveExtSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info, bool is_shared, bool is_spotpass) :
-        ArchiveSaveDataBase(GetProvider(context, info, is_shared, is_spotpass ? VirtualDirectory::SpotPass : VirtualDirectory::User), info.media_type) {
+    ArchiveExtSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info, bool is_spotpass) :
+        ArchiveSaveDataBase(GetProvider(context, info, is_spotpass ? VirtualDirectory::SpotPass : VirtualDirectory::User), info.media_type) {
     }
 
-    ArchiveExtSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info, bool is_shared) :
-        ArchiveSaveDataBase(GetProvider(context, info, is_shared, VirtualDirectory::Root), info.media_type) {
+    ArchiveExtSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info) :
+        ArchiveSaveDataBase(GetProvider(context, info, VirtualDirectory::Root), info.media_type) {
     }
 
-    static ArchiveSaveDataProvider GetProvider(FSContext& context, const ExtSaveDataInfo& info, bool is_shared, VirtualDirectory directory) {
+    static ArchiveSaveDataProvider GetProvider(FSContext& context, const ExtSaveDataInfo& info, VirtualDirectory directory) {
         const bool implicit_resize = false;
         const std::array<const std::string, 3> subpaths = { "", "user", "boss" };
-        return ArchiveSaveDataProvider(BuildBasePath(context, info, is_shared), subpaths.at(directory), implicit_resize, true);
+        return ArchiveSaveDataProvider(BuildBasePath(context, info), subpaths.at(directory), implicit_resize, true);
     }
 
     static std::filesystem::path GetExtDataRootDirectory(FSContext& context, Platform::FS::MediaType media_type) {
@@ -1432,9 +1432,9 @@ public:
     }
 
     // For FSUser::CreateExtSaveData
-    static Result CreateSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info, uint32_t max_directories, uint32_t max_files, IPC::MappedBuffer smdh_icon, bool is_shared) {
+    static Result CreateSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info, uint32_t max_directories, uint32_t max_files, IPC::MappedBuffer smdh_icon) {
         // Note FSUser::CreateExtSaveData is idempotent: Calling it on an already created save data file is not an error
-        auto provider = GetProvider(context, info, is_shared, VirtualDirectory::Root);
+        auto provider = GetProvider(context, info, VirtualDirectory::Root);
         provider.EnsureCreated();
 
         // ExtSaveData is formatted automatically
@@ -1443,7 +1443,7 @@ public:
         provider.EnsureFormatted(ArchiveFormatInfo { size, max_directories, max_files, duplicate_data });
 
         // Write SMDH icon
-        std::filesystem::path base_path = BuildBasePath(context, info, is_shared);
+        std::filesystem::path base_path = BuildBasePath(context, info);
         std::ofstream icon(base_path / "icon", std::ios::binary);
         for (uint32_t i = 0; i < smdh_icon.size; ++i) {
             icon << thread.ReadMemory(smdh_icon.addr + i);
@@ -1454,8 +1454,8 @@ public:
 
     // For FSUser::DeleteExtSaveData
     // TODO: Move to ArchiveSaveDataProvider
-    static Result DeleteSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info, bool is_shared) {
-        std::filesystem::path path = BuildBasePath(context, info, is_shared);
+    static Result DeleteSaveData(FakeThread& thread, FSContext& context, const ExtSaveDataInfo& info) {
+        std::filesystem::path path = BuildBasePath(context, info);
         if (!std::filesystem::exists(path)) {
             return test_mode ? 0xc8804478 : throw std::runtime_error("Tried to delete extdata that doesn't exist");
         }
@@ -1468,29 +1468,22 @@ public:
     }
 
 private:
-    static std::string BuildBasePath(FSContext& context, ExtSaveDataInfo info, bool is_shared) {
-        if (is_shared && (info.media_type != Platform::FS::MediaType::NAND && info.media_type != Platform::FS::MediaType::SD)) {
-            throw std::runtime_error("Shared extdata must be stored on NAND or SD");
-        }
-
-        if (!is_shared && info.media_type != Platform::FS::MediaType::SD) {
-            throw std::runtime_error("Non-shared extdata must be stored on SD");
+    static std::string BuildBasePath(FSContext& context, ExtSaveDataInfo info) {
+        if (info.media_type == Platform::FS::MediaType::NAND && (info.save_id >> 32) != 0x48000) {
+            throw Mikage::Exceptions::Invalid("NAND high extdata ID must be 0x48000");
+        } else if (info.media_type == Platform::FS::MediaType::SD && (info.save_id >> 32) != 0) {
+            // The FS module accepts any high extdata id here, but in practice only 0 is used
+            throw Mikage::Exceptions::NotImplemented("Unexpected SD extdata ID {:#x}", info.save_id);
+        } else if (info.media_type == Platform::FS::MediaType::GameCard) {
+            throw Mikage::Exceptions::Invalid("Gamecards cannot store extdata");
         }
 
         // TODO: For now, we automatically map files within save data to files on the host file system.
         //       For compatibility with FSPXI, we should instead map each title's entire save data to one host file.
-        return std::invoke([&]() -> std::string {
-            // NAND always uses 00048000 here, whereas SD always uses 0
-            // NOTE: As per Citra PR 3242, the FS module overrides the high extdata id with this value for shared extdata files on NAND
-            // TODO: Check if it should do so for all operations! (I think for either OpenArchive or CreateExtSaveData we shouldn't?)
-            if (is_shared && info.media_type == Platform::FS::MediaType::NAND) {
-                info.save_id = (info.save_id & 0xffff'ffff) | 0x48000'00000000;
-            }
-            uint32_t extdata_id_low = info.save_id & 0xffffffff;
-            uint32_t extdata_id_high = info.save_id >> 32;
 
-            return (GetExtDataRootDirectory(context, info.media_type) / fmt::format("{:08x}/{:08x}", extdata_id_high, extdata_id_low)).string();
-        });
+        uint32_t extdata_id_low = info.save_id & 0xffffffff;
+        uint32_t extdata_id_high = info.save_id >> 32;
+        return (GetExtDataRootDirectory(context, info.media_type) / fmt::format("{:08x}/{:08x}", extdata_id_high, extdata_id_low)).string();
     }
 
     Result CreateFile(FakeThread& thread, FSContext& context, uint32_t transaction, uint32_t attributes,
@@ -2602,10 +2595,14 @@ OpenArchive(FakeThread& thread, FSContext& context, ProcessId process_id, uint32
         auto media_type = Serialization::LoadVia<uint32_t>(thread, path.addr);
         auto extdata_id = Serialization::LoadVia<uint64_t>(thread, path.addr + 4);
         auto extdata_info = ExtSaveDataInfo { static_cast<Platform::FS::MediaType>(media_type), {}, extdata_id, 0 };
+        if (archive_id == 0x7) {
+            // The FS module overrides the high extdata id with a hardcoded value for this archive id
+            extdata_info.save_id = (extdata_info.save_id & 0xffff'ffff) | 0x48000'00000000;
+        }
 
         bool is_spotpass = (archive_id == 0x12345678);
-        bool is_shared = is_spotpass ? extdata_info.media_type == Platform::FS::MediaType::NAND : (archive_id == 0x7);
-        auto archive = std::unique_ptr<Archive>(new ArchiveExtSaveData(thread, context, extdata_info, is_shared, is_spotpass));
+
+        auto archive = std::unique_ptr<Archive>(new ArchiveExtSaveData(thread, context, extdata_info, is_spotpass));
         return std::make_tuple(RESULT_OK, std::move(archive));
     }
 
@@ -2784,7 +2781,7 @@ std::tuple<OS::Result, IPC::MappedBuffer>
 FakeFS::HandleCreateExtSaveData(FakeThread& thread, ProcessId, const Platform::FS::ExtSaveDataInfo& info,
                                 uint32_t max_directories, uint32_t max_files, uint64_t, uint32_t,
                                 IPC::MappedBuffer input_smdh) {
-    auto result = ArchiveExtSaveData::CreateSaveData(thread, *this, info, max_directories, max_files, input_smdh, true);
+    auto result = ArchiveExtSaveData::CreateSaveData(thread, *this, info, max_directories, max_files, input_smdh);
     return std::make_tuple(result, input_smdh);
 }
 
@@ -2794,7 +2791,8 @@ FakeFS::HandleEnumerateExtSaveData( FakeThread& thread, ProcessId, uint32_t, uin
     if (media_type == 0 && !is_shared) {
         throw Mikage::Exceptions::Invalid("NAND extdata must be shared");
     } else if (media_type == 1 && is_shared) {
-        throw Mikage::Exceptions::Invalid("SD extdata must not be shared");
+        // The FS module accepts either type of extdata here, but in practice only non-shared is used
+        throw Mikage::Exceptions::NotImplemented("SD extdata is expected to be non-shared");
     } else if (media_type == 2) {
         throw Mikage::Exceptions::Invalid("Gamecards cannot store extdata");
     }
@@ -2803,8 +2801,8 @@ FakeFS::HandleEnumerateExtSaveData( FakeThread& thread, ProcessId, uint32_t, uin
         throw Mikage::Exceptions::Invalid("Invalid extdata ID size or misaligned ID buffer");
     }
 
-    auto extdata_id_high = (media_type == 0) ? 0x00048000 : 0x00000000;
-    auto extdata_high_dir = ArchiveExtSaveData::GetExtDataRootDirectory(*this, static_cast<MediaType>(media_type)) / ((media_type == 0) ? "00048000" : "00000000");
+    auto extdata_id_high = is_shared ? 0x00048000 : 0x00000000;
+    auto extdata_high_dir = ArchiveExtSaveData::GetExtDataRootDirectory(*this, static_cast<MediaType>(media_type)) / (is_shared ? "00048000" : "00000000");
 
     uint32_t num_written = 0;
     const uint32_t max_entries = output_ids.size / id_entry_size;
@@ -2844,7 +2842,7 @@ FakeFS::HandleCreateExtSaveDataLegacy(  FakeThread& thread, ProcessId process_id
 }
 
 std::tuple<OS::Result> FakeFS::HandleDeleteExtSaveData(FakeThread& thread, ProcessId, const Platform::FS::ExtSaveDataInfo& info) {
-    auto result = ArchiveExtSaveData::DeleteSaveData(thread, *this, info, true);
+    auto result = ArchiveExtSaveData::DeleteSaveData(thread, *this, info);
     return std::make_tuple(result);
 }
 
