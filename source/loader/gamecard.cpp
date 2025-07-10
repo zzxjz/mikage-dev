@@ -1,6 +1,10 @@
 #include "gamecard.hpp"
-#include "platform/file_formats/ncch.hpp"
+#include "gamecard_constants.hpp"
+
+#include "framework/settings.hpp"
 #include "platform/file_formats/3dsx.hpp"
+#include "platform/file_formats/ncch.hpp"
+#include "platform/file_formats/smdh.hpp"
 #include "processes/pxi_fs.hpp"
 #include "processes/pxi.hpp"
 #include "host_file.hpp"
@@ -12,6 +16,7 @@
 #include <range/v3/algorithm/fill.hpp>
 #include <range/v3/algorithm/transform.hpp>
 
+#include <cryptopp/sha.h>
 #include <spdlog/sinks/null_sink.h>
 
 namespace Loader {
@@ -40,7 +45,6 @@ std::optional<std::unique_ptr<HLE::PXI::FS::File>> GameCardFromCXI::GetPartition
     if (id == NCSDPartitionId::Executable) {
         return std::visit(GameCardSourceOpener{}, source);
     } else {
-        // TODO: Provide dummy-partitions instead
         throw std::runtime_error("Attempted to open non-existing partition from CXI game image");
     }
 }
@@ -120,48 +124,43 @@ namespace {
  */
 class Adaptor3DSXToNCCH : public HLE::PXI::FS::File {
     std::unique_ptr<HLE::PXI::FS::File> file; // 3DSX source data
+    std::unique_ptr<HLE::PXI::FS::HostFile> logo_file;
 
-    // TODO: Actually store the memory in here!
+    FileFormat::Dot3DSX::Header dot3dsxheader = {};
+    std::optional<FileFormat::Dot3DSX::SecondaryHeader> dot3dsx_secondary_header;
 
     FileFormat::NCCHHeader ncch = {};
     FileFormat::ExHeader exheader = {};
+    FileFormat::ExeFSHeader exefsheader = {};
 
-    FileFormat::Dot3DSX::Header dot3dsxheader = {};
+    FileFormat::SMDH icon_data = {};
 
 public:
-    Adaptor3DSXToNCCH(std::unique_ptr<HLE::PXI::FS::File> file_3dsx) : file(std::move(file_3dsx)) {
+    Adaptor3DSXToNCCH(std::unique_ptr<HLE::PXI::FS::File> file_3dsx, Settings::Settings &settings) : file(std::move(file_3dsx)) {
+        auto logger = std::make_shared<spdlog::logger>("dummy", std::make_shared<spdlog::sinks::null_sink_st>());
+        auto file_context = HLE::PXI::FS::FileContext { *logger };
+        logo_file = std::make_unique<HLE::PXI::FS::HostFile>(settings.get<Settings::PathDataDir>() + "/placeholder_logo.bin", HLE::PXI::FS::HostFile::Default);
+        auto [res] = logo_file->OpenReadOnly(file_context);
+        if (res != HLE::OS::RESULT_OK) {
+            throw Mikage::Exceptions::Invalid("Could not open placeholder_logo.bin. Re-run NAND bootstrap.");
+        }
+
         // Create a fake ncch
-        ncch = FileFormat::NCCHHeader{};
         ncch.magic = std::array<uint8_t, 4>{{'N', 'C', 'C', 'H'}};
-        // TODO: content_size
-        ncch.partition_id = 0xdeadbeefdeadbeef;
-        ncch.program_id = 0xdeadbeefdeadbeef;
+        ncch.partition_id = 0x00040000deadbeef;
+        ncch.program_id = 0x00040000deadbeef; // default title ID for 3DSX files with no icon data
         ncch.crypto_method = 0;
         ncch.platform = 1; // Old3DS
-        ncch.type_mask = 0; // 3 ???
         ncch.unit_size_log2 = 0;
         ncch.flags = 0x1 | 0x2 | 0x4; // don't mount RomFS; don't encrypt contents
-        ncch.exefs_hash_message_size = FileFormat::MediaUnit32{1};
-        ncch.romfs_hash_message_size = FileFormat::MediaUnit32{1};
-
-        ncch.exheader_size = 0x400;
-
 
         // Generate fake exheader with maximum permissions
         // TODO: Restrict to fields which are actually necessary in emulation
-        // TODO: Parts of this are re-initialized in Read()!
-        exheader = {};
         exheader.application_title = {};
         exheader.unknown = {};
         exheader.flags = {};//exheader.flags.compress_exefs_code().Set(0);
         exheader.remaster_version = {};
-        // Filled out by Generate3DSX
-//         exheader.section_text = FileFormat::ExHeader::CodeSetInfo{text_vaddr, text_numpages, header.text_size};
-//         exheader.section_ro = FileFormat::ExHeader::CodeSetInfo{ro_vaddr, ro_numpages, header.ro_size};
-//         exheader.section_data = FileFormat::ExHeader::CodeSetInfo{data_vaddr, data_numpages, header.data_bss_size - header.bss_size};
-//         exheader.bss_size = header.bss_size;
         exheader.stack_size = 0x4000; // TODO: Should we adjust this to some other value?
-        exheader.stack_size = 0x20000; // TODO: Should we adjust this to some other value?
         exheader.unknown3 = {};
         exheader.unknown4 = {};
 
@@ -249,47 +248,129 @@ public:
             throw std::runtime_error("Can't create/truncate game cards");
         }
 
-        auto ret = file->Open(context, flags);
-        if (ret != std::tie(HLE::OS::RESULT_OK)) {
-            return ret;
+        auto open_ret = file->Open(context, flags);
+        if (open_ret != std::tie(HLE::OS::RESULT_OK)) {
+            return open_ret;
         }
 
-        return ret;
-    }
-
-    FileFormat::Dot3DSX::Header Read3DSXHeader(HLE::PXI::FS::FileContext& context) {
-        // TODO: Use serialization interface instead
-        FileFormat::Dot3DSX::Header dot3dsxheader;
         auto ret = file->Read(context, 0, sizeof(dot3dsxheader), HLE::PXI::FS::FileBufferInHostMemory(dot3dsxheader));
-        if (ret != HLE::OS::OS::ResultAnd<uint32_t> { HLE::OS::RESULT_OK, sizeof(dot3dsxheader) }) {
-            throw std::runtime_error("Failed to read 3DSX header");
+        if (ret != std::tuple { HLE::OS::RESULT_OK, (unsigned int)sizeof(dot3dsxheader) }) {
+            throw Mikage::Exceptions::Invalid("Could not read 3DSX header");
         }
 
-        // TODO: Check magic, check header size
+        // Read and validate header(s), populate SMDH data
+        if (dot3dsxheader.header_size == sizeof(FileFormat::Dot3DSX::Header)) {
+            icon_data.magic = { 'S', 'M', 'D', 'H' };
+            constexpr std::array<char16_t, 9> name { u"Homebrew" };
 
-        return dot3dsxheader;
-    }
+            for (auto& app_title : icon_data.application_titles) {
+                ranges::copy(name, app_title.long_description.begin());
+                ranges::copy(name, app_title.short_description.begin());
+                ranges::copy(name, app_title.publisher_name.begin());
+            }
 
-    std::optional<FileFormat::Dot3DSX::SecondaryHeader> Read3DSXSecondaryHeader(HLE::PXI::FS::FileContext& context, uint32_t header_size) {
-        if (header_size == sizeof(FileFormat::Dot3DSX::Header)) {
-            // No secondary header present
-            return std::nullopt;
-        } else if (header_size != sizeof(FileFormat::Dot3DSX::Header) + sizeof(FileFormat::Dot3DSX::SecondaryHeader)) {
-            throw std::runtime_error("Unexpected header size in 3DSX file");
+            using SMDHFlag = FileFormat::SMDH::SMDHFlags;
+
+            icon_data.application_settings.region_flags = 0xFFFFFFFF; // no region lock
+            icon_data.application_settings.flags = Meta::to_underlying(SMDHFlag::Visible | SMDHFlag::DisableSaveBackup);
+            // Give this SMDH a placeholder icon
+            ranges::copy(GameCardConstants::MikageIconSmall, icon_data.small_icon.begin());
+            ranges::copy(GameCardConstants::MikageIconLarge, icon_data.large_icon.begin());
+        } else if (dot3dsxheader.header_size == sizeof(FileFormat::Dot3DSX::Header) + sizeof(FileFormat::Dot3DSX::SecondaryHeader)) {
+            dot3dsx_secondary_header = FileFormat::Dot3DSX::SecondaryHeader{};
+            auto ret = file->Read(context, sizeof(FileFormat::Dot3DSX::Header), sizeof(FileFormat::Dot3DSX::SecondaryHeader), HLE::PXI::FS::FileBufferInHostMemory(*dot3dsx_secondary_header));
+            if (ret != std::tuple { HLE::OS::RESULT_OK, sizeof(FileFormat::Dot3DSX::SecondaryHeader) }) {
+                throw Mikage::Exceptions::Invalid("Could not read secondary 3DSX header");
+            } else if (dot3dsx_secondary_header->smdh_size != sizeof(FileFormat::SMDH)) {
+                throw Mikage::Exceptions::Invalid("Invalid SMDH size in 3DSX");
+            }
+
+            ret = file->Read(context, dot3dsx_secondary_header->smdh_offset, dot3dsx_secondary_header->smdh_size, HLE::PXI::FS::FileBufferInHostMemory(icon_data));
+            if (ret != std::tuple { HLE::OS::RESULT_OK, sizeof(FileFormat::SMDH) }) {
+                throw Mikage::Exceptions::Invalid("Could not read 3DSX SMDH data");
+            }
+
+            // To prevent the HOME Menu from using incorrect cached icon data, give this 3DSX a unique title ID based on its SMDH data
+            uint32_t unique_id = 0;
+            CryptoPP::SHA256().CalculateTruncatedDigest(reinterpret_cast<CryptoPP::byte*>(&unique_id), 4, reinterpret_cast<CryptoPP::byte*>(&icon_data), sizeof(FileFormat::SMDH));
+            ncch.program_id = 0x0004000000000000 | (unique_id & 0x0FFFFFFFF);
+            ncch.partition_id = 0x0004000000000000 | (unique_id & 0x0FFFFFFFF);
+        } else {
+            throw Mikage::Exceptions::Invalid("Invalid 3DSX header size");
         }
 
-        // TODO: Use serialization interface instead
-        FileFormat::Dot3DSX::SecondaryHeader secondary_header;
-        auto ret = file->Read(context, sizeof(FileFormat::Dot3DSX::Header), sizeof(secondary_header), HLE::PXI::FS::FileBufferInHostMemory(secondary_header));
-        if (ret != HLE::OS::OS::ResultAnd<uint32_t> { HLE::OS::RESULT_OK, sizeof(secondary_header) }) {
-            throw std::runtime_error("Failed to read 3DSX header");
+        // Build ExHeader
+        uint32_t text_numpages = ((dot3dsxheader.text_size + 0xfff) >> 12);
+        uint32_t ro_numpages = ((dot3dsxheader.ro_size + 0xfff) >> 12);
+        uint32_t data_numpages = (((dot3dsxheader.data_bss_size - dot3dsxheader.bss_size) + 0xfff) >> 12);
+
+        uint32_t text_vaddr = 0x00100000;
+        uint32_t ro_vaddr = text_vaddr + (text_numpages << 12);
+        uint32_t data_vaddr = ro_vaddr + (ro_numpages << 12);
+
+        ranges::copy("3DSXCart", exheader.application_title.begin());
+        exheader.section_text = FileFormat::ExHeader::CodeSetInfo { text_vaddr, text_numpages, dot3dsxheader.text_size };
+        exheader.section_ro = FileFormat::ExHeader::CodeSetInfo { ro_vaddr, ro_numpages, dot3dsxheader.ro_size };
+        exheader.section_data = FileFormat::ExHeader::CodeSetInfo { data_vaddr, data_numpages, dot3dsxheader.data_bss_size - dot3dsxheader.bss_size };
+        exheader.bss_size = dot3dsxheader.bss_size;
+
+        ncch.exheader_size = 0x400;
+
+        auto [res, logo_size] = logo_file->GetSize(context);
+        if (res != HLE::OS::RESULT_OK || !logo_size) {
+            throw Mikage::Exceptions::Invalid("Failed to get placeholder_logo.bin size");
         }
 
-        return secondary_header;
+        // Build ExeFS
+        // Technically speaking, "icon", "banner", and "logo" are not necessary to directly boot the 3DSX, but HOME menu requires all three to launch it from there.
+        ranges::copy(".code", exefsheader.files[0].name.begin());
+        ranges::copy("icon", exefsheader.files[1].name.begin());
+        ranges::copy("banner", exefsheader.files[2].name.begin());
+        ranges::copy("logo", exefsheader.files[3].name.begin());
+
+        // +0x1ff: Round up to the next media unit size
+        exefsheader.files[0].size_bytes = GetProgramCodeSize();
+        exefsheader.files[0].offset = 0;
+        exefsheader.files[1].size_bytes = sizeof(FileFormat::SMDH);
+        exefsheader.files[1].offset = (exefsheader.files[0].size_bytes + 0x1ff) & ~0x1ff;
+        exefsheader.files[2].size_bytes = GameCardConstants::MikageBanner.size();
+        exefsheader.files[2].offset = ((exefsheader.files[1].offset + exefsheader.files[1].size_bytes) + 0x1ff) & ~0x1ff;
+        exefsheader.files[3].size_bytes = logo_size;
+        exefsheader.files[3].offset = ((exefsheader.files[2].offset + exefsheader.files[2].size_bytes) + 0x1ff) & ~0x1ff;
+
+        ncch.exefs_offset = FileFormat::MediaUnit32::FromBytes(sizeof(FileFormat::NCCHHeader) + sizeof(FileFormat::ExHeader));
+        ncch.exefs_size = FileFormat::MediaUnit32::FromBytes(exefsheader.GetExeFSSize() + 0x1ff);
+        ncch.exefs_hash_message_size = FileFormat::MediaUnit32{1};
+
+        using NCCHForm = FileFormat::NCCHHeader::FormType;
+        using NCCHContent = FileFormat::NCCHHeader::ContentType;
+        using TypeFlags = FileFormat::NCCHHeader::TypeFlags;
+
+        // Add RomFS (if present)
+        if (dot3dsx_secondary_header) {
+            ncch.romfs_offset = FileFormat::MediaUnit32::FromBytes(0x1ff + ncch.exefs_offset.ToBytes() + ncch.exefs_size.ToBytes());
+            auto [result, total_size] = file->GetSize(context);
+            if (result != HLE::OS::RESULT_OK) {
+                throw std::runtime_error("Failed to get own file size");
+            }
+            ncch.romfs_size = FileFormat::MediaUnit32::FromBytes(total_size - dot3dsx_secondary_header->romfs_offset + 0x1ff + 0x1000); // Offset by 0x1000 to get to the level3 image (the only part contained in 3dsx files)
+            ncch.romfs_hash_message_size = FileFormat::MediaUnit32{1};
+            ncch.type_mask = TypeFlags::Make().content_type()(NCCHContent::Unspecified).form_type()(NCCHForm::Executable).raw;
+        } else {
+            ncch.type_mask = TypeFlags::Make().content_type()(NCCHContent::Unspecified).form_type()(NCCHForm::ExecutableWithoutRomFS).raw;
+        }
+
+        uint64_t base_size = sizeof(FileFormat::NCCHHeader) + sizeof(FileFormat::ExHeader);
+        base_size += ncch.exefs_size.ToBytes();
+        base_size += ncch.romfs_size.ToBytes();
+        // Required to properly read all kinds of 3DSX files (with/without secondary header)
+        ncch.content_size = FileFormat::MediaUnit32::FromBytes(base_size);
+
+        return HLE::OS::RESULT_OK;
     }
 
     /// Get program code size in bytes
-    uint64_t GetProgramCodeSize(const FileFormat::Dot3DSX::Header& dot3dsxheader) const {
+    uint64_t GetProgramCodeSize() const {
         uint32_t text_numpages = ((dot3dsxheader.text_size + 0xfff) >> 12);
         uint32_t ro_numpages = ((dot3dsxheader.ro_size + 0xfff) >> 12);
         uint32_t data_numpages = (((dot3dsxheader.data_bss_size - dot3dsxheader.bss_size) + 0xfff) >> 12);
@@ -297,10 +378,11 @@ public:
         return (text_numpages + ro_numpages + data_numpages) << 12;
     }
 
-    std::vector<std::uint8_t> ReadProgramCode(HLE::PXI::FS::FileContext& context, const FileFormat::Dot3DSX::Header& dot3dsxheader) {
-        std::array<FileFormat::Dot3DSX::RelocationHeader, 3> relocation_headers;
 
+    std::vector<std::uint8_t> ReadProgramCode(HLE::PXI::FS::FileContext& context) {
+        std::array<FileFormat::Dot3DSX::RelocationHeader, 3> relocation_headers;
         std::vector<FileFormat::Dot3DSX::RelocationInfo> relocations;
+
         uint64_t offset = dot3dsxheader.header_size;
         for (size_t header = 0; header < relocation_headers.size(); ++header) {
             auto& reloc_header = relocation_headers[header];
@@ -311,7 +393,6 @@ public:
             offset += std::get<1>(ret);
         }
 
-
         // Read program sections
         uint32_t text_numpages = ((dot3dsxheader.text_size + 0xfff) >> 12);
         uint32_t ro_numpages = ((dot3dsxheader.ro_size + 0xfff) >> 12);
@@ -321,7 +402,7 @@ public:
         uint32_t ro_vaddr = text_vaddr + (text_numpages << 12);
         uint32_t data_vaddr = ro_vaddr + (ro_numpages << 12);
 
-        uint32_t total_size = GetProgramCodeSize(dot3dsxheader);
+        uint32_t total_size = GetProgramCodeSize();
         std::vector<uint32_t> program_data(total_size / 4, 0);
         const std::array<uint32_t*, 3> segment_ptrs = {{ program_data.data(),
                                                         program_data.data() + (ro_vaddr - text_vaddr) / 4,
@@ -418,31 +499,15 @@ public:
     }
 
     HLE::OS::OS::ResultAnd<uint32_t> Read(HLE::PXI::FS::FileContext& context, uint64_t offset, uint32_t num_bytes, HLE::PXI::FS::FileBuffer&& dest) override {
-        FileFormat::Dot3DSX::Header dot3dsxheader = Read3DSXHeader(context);
-        std::optional<FileFormat::Dot3DSX::SecondaryHeader> dot3dsx_secondary_header = Read3DSXSecondaryHeader(context, dot3dsxheader.header_size);
-
-        // Build ExeFS header
-        FileFormat::ExeFSHeader exefsheader = {};
-        ranges::copy(".code", exefsheader.files[0].name.begin());
-        exefsheader.files[0].size_bytes = GetProgramCodeSize(dot3dsxheader);
-
         // Offsets within the exposed NCCH file
         const uint64_t ncch_offset = 0;
         const uint64_t exheader_offset = ncch_offset + sizeof(FileFormat::NCCHHeader);
         const uint64_t exefsheader_offset = exheader_offset + sizeof(FileFormat::ExHeader); // TODO: ncch.exefs_offset.ToBytes() ?
         const uint64_t exefsdata_offset = exefsheader_offset + sizeof(FileFormat::ExeFSHeader);
-
-        // +0x1ff: Round up to the next media unit size
-        ncch.exefs_offset = FileFormat::MediaUnit32::FromBytes(exefsheader_offset);
-        ncch.exefs_size = FileFormat::MediaUnit32::FromBytes(exefsheader.GetExeFSSize() + 0x1ff);
-        if (dot3dsx_secondary_header) {
-            ncch.romfs_offset = FileFormat::MediaUnit32::FromBytes(0x1ff + ncch.exefs_offset.ToBytes() + ncch.exefs_size.ToBytes());
-            auto [result, total_size] = file->GetSize(context);
-            if (result != HLE::OS::RESULT_OK) {
-                throw std::runtime_error("Failed to get own file size");
-            }
-            ncch.romfs_size = FileFormat::MediaUnit32::FromBytes(total_size - dot3dsx_secondary_header->romfs_offset + 0x1ff + 0x1000); // Offset by 0x1000 to get to the level3 image (the only part contained in 3dsx files)
-        }
+        const uint64_t icon_offset = exefsdata_offset + exefsheader.files[1].offset;
+        const uint64_t banner_offset = exefsdata_offset + exefsheader.files[2].offset;
+        const uint64_t logo_offset = exefsdata_offset + exefsheader.files[3].offset;
+        const uint64_t exefsdata_end_offset = logo_offset + exefsheader.files[3].size_bytes;
 
         if (offset >= ncch_offset && offset + num_bytes <= exheader_offset) {
             // TODO: Use FileFormat::Save instead!
@@ -452,26 +517,6 @@ public:
                 throw std::runtime_error("Cannot partially read extended header for 3DSX files currently");
             }
 
-            // Patch 3DSX data
-            uint32_t text_numpages = ((dot3dsxheader.text_size +0xfff) >> 12);
-            uint32_t ro_numpages = ((dot3dsxheader.ro_size+0xfff) >> 12);
-            uint32_t data_numpages = (((dot3dsxheader.data_bss_size - dot3dsxheader.bss_size) + 0xfff) >> 12);
-
-            uint32_t text_vaddr = 0x00100000;
-            uint32_t ro_vaddr = text_vaddr + (text_numpages << 12);
-            uint32_t data_vaddr = ro_vaddr + (ro_numpages << 12);
-
-            ranges::copy("3DSXCart", exheader.application_title.begin());
-            exheader.unknown = {};
-            exheader.flags = {};//inject_target.exheader.flags.compress_exefs_code().Set(0);
-            exheader.remaster_version = {};
-            exheader.section_text = FileFormat::ExHeader::CodeSetInfo{text_vaddr, text_numpages, dot3dsxheader.text_size };
-            exheader.section_ro = FileFormat::ExHeader::CodeSetInfo{ro_vaddr, ro_numpages, dot3dsxheader.ro_size };
-            exheader.section_data = FileFormat::ExHeader::CodeSetInfo{data_vaddr, data_numpages, dot3dsxheader.data_bss_size - dot3dsxheader.bss_size };
-            exheader.bss_size = dot3dsxheader.bss_size;
-            exheader.stack_size = 0x4000; // TODO: Should we adjust this to some other value?
-            exheader.unknown3 = {};
-            exheader.unknown4 = {};
             // TODO: Use FileFormat::Save instead!
             dest.Write(reinterpret_cast<char*>(&exheader), sizeof(exheader));
         } else if (offset >= exefsheader_offset && offset < exefsheader_offset + sizeof(exefsheader)) {
@@ -482,13 +527,19 @@ public:
                 // TODO: Use FileFormat::Save instead!
                 dest.Write(reinterpret_cast<char*>(&exefsheader), sizeof(exefsheader));
             }
-        } else if (offset >= exefsdata_offset && offset < exefsdata_offset + GetProgramCodeSize(dot3dsxheader)) {
-            if (offset != exefsdata_offset || num_bytes != GetProgramCodeSize(dot3dsxheader)) {
+        } else if (offset >= exefsdata_offset && offset < exefsdata_end_offset) {
+            if (offset == exefsdata_offset && num_bytes == GetProgramCodeSize()) {
+                auto program_code = ReadProgramCode(context);
+                dest.Write(reinterpret_cast<char*>(program_code.data()), program_code.size());
+            } else if (offset == icon_offset && num_bytes == sizeof(FileFormat::SMDH)) {
+                dest.Write(reinterpret_cast<char*>(&icon_data), sizeof(FileFormat::SMDH));
+            } else if (offset == banner_offset && num_bytes == GameCardConstants::MikageBanner.size()) {
+                dest.Write(reinterpret_cast<const char*>(GameCardConstants::MikageBanner.data()), GameCardConstants::MikageBanner.size());
+            } else if (offset == logo_offset && num_bytes == exefsheader.files[3].size_bytes) {
+                logo_file->Read(context, 0, exefsheader.files[3].size_bytes, std::move(dest));
+            } else {
                 throw std::runtime_error("Cannot partially read ExeFS data for 3DSX files currently");
             }
-
-            auto program_code = ReadProgramCode(context, dot3dsxheader);
-            dest.Write(reinterpret_cast<char*>(program_code.data()), program_code.size());
         } else if (offset == ncch.romfs_offset.ToBytes() && num_bytes <= 4) {
             // This is the location for the magic "IVFC" string in the RomFS
             // header. 3DSX files don't contain this header, so we just return
@@ -518,13 +569,7 @@ public:
     }
 
     HLE::OS::OS::ResultAnd<uint64_t> GetSize(HLE::PXI::FS::FileContext& context) override {
-        if (ncch.romfs_size.ToBytes()) {
-            // RomFS may extend past original 3DSX size, since its start offset is aligned in NCCH but not in 3DSX
-            return std::make_tuple(HLE::OS::RESULT_OK, uint64_t { ncch.romfs_offset.ToBytes() + ncch.romfs_size.ToBytes() });
-        }
-
-        // Return original file size as upper bound; this is merely needed to prevent the bounds check in FileViews from failing
-        return file->GetSize(context);
+        return std::make_tuple(HLE::OS::RESULT_OK, ncch.content_size.ToBytes());
     }
 
     void Close() override {
@@ -534,16 +579,15 @@ public:
 
 } // end of anonymous namespace
 
-GameCardFrom3DSX::GameCardFrom3DSX(std::string_view filename) : source(std::string { filename }) {
+GameCardFrom3DSX::GameCardFrom3DSX(std::string_view filename, Settings::Settings& settings) : source(std::string { filename }), settings(settings) {
 }
 
-GameCardFrom3DSX::GameCardFrom3DSX(int file_descriptor) : source(file_descriptor) {
+GameCardFrom3DSX::GameCardFrom3DSX(int file_descriptor, Settings::Settings& settings) : source(file_descriptor), settings(settings) {
 }
 
 std::optional<std::unique_ptr<HLE::PXI::FS::File>> GameCardFrom3DSX::GetPartitionFromId(Loader::NCSDPartitionId id) {
     if (id == NCSDPartitionId::Executable) {
-        auto file = new Adaptor3DSXToNCCH(std::visit(GameCardSourceOpener{}, source));
-        return std::unique_ptr<HLE::PXI::FS::File>(file);
+        return std::make_unique<Adaptor3DSXToNCCH>(std::visit(GameCardSourceOpener{}, source), settings);
     } else {
         throw std::runtime_error("Not implemented yet");
         return std::nullopt;
