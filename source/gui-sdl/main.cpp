@@ -325,6 +325,33 @@ if (bootstrap_nand) // Experimental system bootstrapper
             hwcal0.write(zero, size % sizeof(zero));
         }
 
+        // Dump "logo" to have one for the 3DSX -> Gamecard adaptor
+        {
+            auto cxi_partition = gamecard->GetPartitionFromId(Loader::NCSDPartitionId::Executable);
+            auto [cxi_open_res] = (*cxi_partition)->OpenReadOnly(file_context);
+
+            if (cxi_open_res != HLE::OS::RESULT_OK) {
+                throw std::runtime_error("Could not open executable partition of gamecard image");
+            }
+
+            static constexpr const std::array<uint8_t, 8> logo_section_name = { 'l', 'o', 'g', 'o' };
+            auto logo_section = HLE::PXI::FS::NCCHOpenExeFSSection(*frontend_logger, file_context, keydb, std::move(*cxi_partition), 2, std::basic_string_view<uint8_t>(logo_section_name.data(), logo_section_name.size()));
+
+            std::ofstream logo_file(settings.get<Settings::PathDataDir>() + "/placeholder_logo.bin", std::ios::binary);
+
+            auto [res, logosize] = logo_section->GetSize(file_context);
+            if (res != HLE::OS::RESULT_OK || !logosize) {
+                throw std::runtime_error("Could not get size of logo section in gamecart executable partition");
+            }
+
+            std::vector<char> logobuf(logosize);
+            auto read_res = logo_section->Read(file_context, 0, logosize, HLE::PXI::FS::FileBufferInHostMemory(logobuf.data(), logosize));
+            if (read_res != std::tuple{ HLE::OS::RESULT_OK, logosize }) {
+                throw std::runtime_error("Could not read logo section in gamecart executable partition");
+            }
+            logo_file.write(logobuf.data(), logosize);
+        }
+
         // Set up dummy rw/sys/SecureInfo_A with region EU
         // TODO: Let the user select the region
         {
