@@ -328,6 +328,9 @@ if (bootstrap_nand) // Experimental system bootstrapper
         // Dump "logo" to have one for the 3DSX -> Gamecard adaptor
         {
             auto cxi_partition = gamecard->GetPartitionFromId(Loader::NCSDPartitionId::Executable);
+            if (!cxi_partition) {
+                throw std::runtime_error("Could not find executable partition in gamecard image");
+            }
             auto [cxi_open_res] = (*cxi_partition)->OpenReadOnly(file_context);
 
             if (cxi_open_res != HLE::OS::RESULT_OK) {

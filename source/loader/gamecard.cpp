@@ -1,6 +1,7 @@
 #include "gamecard.hpp"
 #include "gamecard_constants.hpp"
 
+#include "framework/meta_tools.hpp"
 #include "framework/settings.hpp"
 #include "platform/file_formats/3dsx.hpp"
 #include "platform/file_formats/ncch.hpp"
@@ -45,8 +46,12 @@ std::optional<std::unique_ptr<HLE::PXI::FS::File>> GameCardFromCXI::GetPartition
     if (id == NCSDPartitionId::Executable) {
         return std::visit(GameCardSourceOpener{}, source);
     } else {
-        throw std::runtime_error("Attempted to open non-existing partition from CXI game image");
+        return std::nullopt;
     }
+}
+
+bool GameCardFromCXI::HasPartition(NCSDPartitionId id) {
+    return id == NCSDPartitionId::Executable;
 }
 
 static bool IsLoadableCXIFile(HLE::PXI::FS::File& file) {
@@ -89,9 +94,27 @@ std::optional<std::unique_ptr<HLE::PXI::FS::File>> GameCardFromCCI::GetPartition
     cci_file->Read(file_context, 0, decltype(ncsd)::Tags::expected_serialized_size, HLE::PXI::FS::FileBufferInHostMemory(ncsd));
     cci_file->Close();
 
+    // Check if this CCI has the requested partition
+    if (!ncsd.secondary_header.cart_header.partition_id_table[Meta::to_underlying(id)]) {
+        return std::nullopt;
+    }
+
     auto& ncsd_partition = ncsd.partition_table[Meta::to_underlying(id)];
     auto ncch_file = std::unique_ptr<HLE::PXI::FS::File>(new HLE::PXI::FS::FileView(std::move(cci_file), ncsd_partition.offset.ToBytes(), ncsd_partition.size.ToBytes()));
     return std::move(ncch_file);
+}
+
+bool GameCardFromCCI::HasPartition(NCSDPartitionId id) {
+    auto logger = std::make_shared<spdlog::logger>("dummy", std::make_shared<spdlog::sinks::null_sink_st>());
+    auto file_context = HLE::PXI::FS::FileContext { *logger };
+    auto cci_file = std::visit(GameCardSourceOpener{}, source);
+
+    cci_file->OpenReadOnly(file_context);
+    FileFormat::NCSDHeader ncsd;
+    cci_file->Read(file_context, 0, decltype(ncsd)::Tags::expected_serialized_size, HLE::PXI::FS::FileBufferInHostMemory(ncsd));
+    cci_file->Close();
+
+    return ncsd.secondary_header.cart_header.partition_id_table[Meta::to_underlying(id)] != 0;
 }
 
 static bool IsLoadableCCIFile(HLE::PXI::FS::File& file) {
@@ -589,9 +612,12 @@ std::optional<std::unique_ptr<HLE::PXI::FS::File>> GameCardFrom3DSX::GetPartitio
     if (id == NCSDPartitionId::Executable) {
         return std::make_unique<Adaptor3DSXToNCCH>(std::visit(GameCardSourceOpener{}, source), settings);
     } else {
-        throw std::runtime_error("Not implemented yet");
         return std::nullopt;
     }
+}
+
+bool GameCardFrom3DSX::HasPartition(NCSDPartitionId id) {
+    return id == NCSDPartitionId::Executable;
 }
 
 static bool IsLoadable3DSXFile(HLE::PXI::FS::File& file) {
