@@ -202,7 +202,7 @@ CIA::NCCH ParseNCCH(std::ifstream& file) {
     std::cout << "Program id: 0x" << std::hex << ncch.program_id << std::endl;
     std::cout << "Encryption method: 0x" << std::hex << +ncch.crypto_method << std::endl;
     std::cout << "Platform: 0x" << std::hex << +ncch.platform << std::endl;
-    std::cout << "Type mask: 0x" << std::hex << +ncch.type_mask << std::endl;
+    std::cout << "Type flags: 0x" << std::hex << +ncch.type_flags.raw << std::endl;
     std::cout << "Unit size: 0x" << std::hex << (0x200 * (UINT32_C(1) << ncch.unit_size_log2)) << " (0x200 * (1 << 0x" << +ncch.unit_size_log2 << "))" << std::endl;
     std::cout << "Flags: 0x" << std::hex << +ncch.flags << std::endl;
 
@@ -1598,7 +1598,7 @@ int main(int argc, char* argv[]) {
         ncch.header.program_id = alt_titleid;
         ncch.header.crypto_method = 0;
         ncch.header.platform = 1; // Old3DS
-        ncch.header.type_mask = 0; // 3 ???
+        ncch.header.type_flags = FileFormat::NCCHHeader::TypeFlags::Make(); // 3 ???
         ncch.header.unit_size_log2 = 0;
         ncch.header.flags = 0x1 | 0x2 | 0x4; // don't mount RomFS; don't encrypt contents
         ncch.header.exefs_hash_message_size = FileFormat::MediaUnit32{1};

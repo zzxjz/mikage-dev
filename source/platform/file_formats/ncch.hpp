@@ -99,9 +99,7 @@ struct NCCHHeader {
         // 1 = Old3DS, 2 = New3DS
         (uint8_t, platform),
 
-        // Content Type: 0 = Unspecified, 1 = System Update, 2 = Instruction Manual, 3 = Download Play Child, 4 = Trial (Demo), 5 = Extended System Update
-        // Form Type: 0 = Not Assigned, 1 = Simple Content, 2 = Executable without RomFS, 3 = Executable
-        (uint8_t, type_mask),
+        (TypeFlags, type_flags),
 
         // logarithmic unit size in MediaUnits: unit_size_bytes = 0x200 * 2^unit_size_log2
         (uint8_t, unit_size_log2),

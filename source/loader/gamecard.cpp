@@ -378,9 +378,9 @@ public:
             }
             ncch.romfs_size = FileFormat::MediaUnit32::FromBytes(total_size - dot3dsx_secondary_header->romfs_offset + 0x1ff + 0x1000); // Offset by 0x1000 to get to the level3 image (the only part contained in 3dsx files)
             ncch.romfs_hash_message_size = FileFormat::MediaUnit32{1};
-            ncch.type_mask = TypeFlags::Make().content_type()(NCCHContent::Unspecified).form_type()(NCCHForm::Executable).raw;
+            ncch.type_flags = TypeFlags::Make().content_type()(NCCHContent::Unspecified).form_type()(NCCHForm::Executable);
         } else {
-            ncch.type_mask = TypeFlags::Make().content_type()(NCCHContent::Unspecified).form_type()(NCCHForm::ExecutableWithoutRomFS).raw;
+            ncch.type_flags = TypeFlags::Make().content_type()(NCCHContent::Unspecified).form_type()(NCCHForm::ExecutableWithoutRomFS);
         }
 
         uint64_t base_size = sizeof(FileFormat::NCCHHeader) + sizeof(FileFormat::ExHeader);
