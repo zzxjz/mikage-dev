@@ -1,4 +1,5 @@
 #include "ns_hpv.hpp"
+#include "loader/gamecard.hpp"
 #include "os_hypervisor_private.hpp"
 #include "os.hpp"
 
@@ -207,6 +208,25 @@ struct NsService : SessionToPort {
         dispatcher.DecodeRequest<NS::LaunchTitle>([&](auto&, uint64_t title_id, uint32_t flags) {
             auto description = fmt::format( "LaunchTitle, title_id={:#x}, flags={:#x}", title_id, flags);
             Session::OnRequest(hypervisor, thread, session, description);
+        });
+
+        dispatcher.DecodeRequest<NS::CardUpdateInitialize>([&](auto& response, uint32_t shared_mem_size, Handle /* shared_mem */) {
+            auto description = fmt::format( "CardUpdateInitialize, shared_mem_size={:#x}", shared_mem_size);
+            Session::OnRequest(hypervisor, thread, session, description);
+
+            auto gamecard = thread.GetOS().setup.gamecard.get();
+            assert(gamecard);
+            // Override the request data to disable card update process for 3DSX files, CXI files, and CCI images without an update partition
+            if (!gamecard->HasPartition(Loader::NCSDPartitionId::UpdateData)) {
+                // Change the request command ID to 0xfffe0000 to make NS ignore the command.
+                thread.WriteTLS(0x80, 0xfffe0000);
+
+                // Override the response data to indicate that no update is required
+                response.OnResponse([=](Hypervisor&, Thread& thread, Result) {
+                    thread.WriteTLS(0x80, NS::CardUpdateInitialize::response_header);
+                    thread.WriteTLS(0x84, 0xc821180b); // "No card update required"
+                });
+            }
         });
     }
 };

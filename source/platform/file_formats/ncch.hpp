@@ -39,6 +39,35 @@ using MediaUnit32 = MediaUnit<uint32_t>;
 using Bytes32 = uint32_t;
 
 struct NCCHHeader {
+    enum class ContentType {
+        Unspecified          = 0,
+        SystemUpdate         = 1,
+        InstructionManual    = 2,
+        DLPChild             = 3,
+        Trial                = 4,
+        ExtendedSystemUpdate = 5,
+    };
+
+    enum class FormType {
+        NotAssigned            = 0,
+        SimpleContent          = 1,
+        ExecutableWithoutRomFS = 2,
+        Executable             = 3,
+    };
+
+    struct TypeFlags {
+        BOOST_HANA_DEFINE_STRUCT(TypeFlags,
+            (uint8_t, raw)
+        );
+
+        constexpr auto form_type() const { return BitField::v3::MakeFieldOn<0, 2, FormType>(this); }
+        constexpr auto content_type() const { return BitField::v3::MakeFieldOn<2, 6, ContentType>(this); }
+
+        static TypeFlags Make() {
+            return TypeFlags{};
+        }
+    };
+
     BOOST_HANA_DEFINE_STRUCT(NCCHHeader,
         (std::array<uint8_t, 0x100>, signature), // RSA-2048 signature
         (std::array<uint8_t, 4>, magic),         // always "NCCH"
@@ -70,8 +99,7 @@ struct NCCHHeader {
         // 1 = Old3DS, 2 = New3DS
         (uint8_t, platform),
 
-        // 1 = data, 2 = executable, 4 = system update, 8 = manual, 0x10 = trial
-        (uint8_t, type_mask),
+        (TypeFlags, type_flags),
 
         // logarithmic unit size in MediaUnits: unit_size_bytes = 0x200 * 2^unit_size_log2
         (uint8_t, unit_size_log2),
@@ -467,13 +495,40 @@ struct NCSDHeader {
         );
     };
 
+    struct CartHeader {
+        BOOST_HANA_DEFINE_STRUCT(CartHeader,
+            (std::array<uint8_t, 32>, exheader_sha256),
+            (uint32_t, additional_header_size),
+            (uint32_t, sector0_offset),
+            (uint64_t, partition_flags),
+            (std::array<uint64_t, 8>, partition_id_table), // non-zero if a partition exists at the given index
+            (std::array<uint8_t, 0x30>, unknown)
+        );
+
+        struct Tags : expected_size_tag<0xa0> {};
+    };
+
+    struct NANDHeader {
+        BOOST_HANA_DEFINE_STRUCT(NANDHeader,
+            (std::array<uint8_t, 0x5e>, unknown),
+            (std::array<uint8_t, 0x42>, encrypted_twl_mbr)
+        );
+
+        struct Tags : expected_size_tag<0xa0> {};
+    };
+
+    union NCSDSecondaryHeader {
+        CartHeader cart_header;
+        NANDHeader nand_header;
+    };
+
     BOOST_HANA_DEFINE_STRUCT(NCSDHeader,
         (std::array<uint8_t, 0x100>, signature), // RSA-2048 SHA-256 signature of this header (starting from magic?)
         (std::array<uint8_t, 4>, magic),         // always "NCSD"
         (MediaUnit32, size),                     // total NCSD size
         (std::array<uint8_t, 0x18>, unknown),
         (std::array<Partition, 8>, partition_table),
-        (std::array<uint8_t, 0xa0>, unknown2)
+        (NCSDSecondaryHeader, secondary_header)
     );
 
     struct Tags : expected_size_tag<0x200> {};

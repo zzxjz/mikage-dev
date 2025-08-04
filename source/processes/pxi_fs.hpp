@@ -51,7 +51,7 @@ public:
 //    virtual void Read(char* dest, uint32_t num_bytes) = 0;
 
     /// Write the specified number of bytes from the source to the internal buffer
-    virtual void Write(char* source, uint32_t num_bytes) = 0;
+    virtual void Write(const char* source, uint32_t num_bytes) = 0;
 };
 
 class FileBufferInHostMemory : public FileBuffer {
@@ -69,10 +69,11 @@ public:
     }
 
     template<typename T>
+    requires(std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T> && std::is_trivially_default_constructible_v<T>)
     FileBufferInHostMemory(T& t) : memory(CheckCast(t)), size(sizeof(T)) {
     }
 
-    void Write(char* source, uint32_t num_bytes) override;
+    void Write(const char* source, uint32_t num_bytes) override;
 };
 
 struct OpenFlags {
