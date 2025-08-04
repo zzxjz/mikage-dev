@@ -23,7 +23,7 @@ std::unique_ptr<Loader::GameCard> LoadGameCard(spdlog::logger& logger, Settings:
             if constexpr (std::is_same_v<std::decay_t<decltype(val)>, Settings::InitialApplicationTag::HostFile>) {
                 try {
                     if (Loader::GameCardFrom3DSX::IsLoadableFile(val.filename))
-                        return std::unique_ptr<Loader::GameCard> { new Loader::GameCardFrom3DSX(val.filename, settings) };
+                        return std::unique_ptr<Loader::GameCard> { new Loader::GameCardFrom3DSX(val.filename, settings.get<Settings::PathDataDir>()) };
                     else if (Loader::GameCardFromCXI::IsLoadableFile(val.filename))
                         return std::unique_ptr<Loader::GameCard> { new Loader::GameCardFromCXI(val.filename) };
                     else if (Loader::GameCardFromCCI::IsLoadableFile(val.filename))
@@ -33,7 +33,7 @@ std::unique_ptr<Loader::GameCard> LoadGameCard(spdlog::logger& logger, Settings:
                 }
             } else if constexpr (std::is_same_v<std::decay_t<decltype(val)>, Settings::InitialApplicationTag::FileDescriptor>) {
                 if (Loader::GameCardFrom3DSX::IsLoadableFile(val.fd))
-                    return std::unique_ptr<Loader::GameCard> { new Loader::GameCardFrom3DSX(val.fd, settings) };
+                    return std::unique_ptr<Loader::GameCard> { new Loader::GameCardFrom3DSX(val.fd, settings.get<Settings::PathDataDir>()) };
                 else if (Loader::GameCardFromCXI::IsLoadableFile(val.fd))
                     return std::unique_ptr<Loader::GameCard> { new Loader::GameCardFromCXI(val.fd) };
                 else if (Loader::GameCardFromCCI::IsLoadableFile(val.fd))

@@ -159,10 +159,10 @@ class Adaptor3DSXToNCCH : public HLE::PXI::FS::File {
     FileFormat::SMDH icon_data = {};
 
 public:
-    Adaptor3DSXToNCCH(std::unique_ptr<HLE::PXI::FS::File> file_3dsx, Settings::Settings &settings) : file(std::move(file_3dsx)) {
+    Adaptor3DSXToNCCH(std::unique_ptr<HLE::PXI::FS::File> file_3dsx, const std::string& data_dir_path) : file(std::move(file_3dsx)) {
         auto logger = std::make_shared<spdlog::logger>("dummy", std::make_shared<spdlog::sinks::null_sink_st>());
         auto file_context = HLE::PXI::FS::FileContext { *logger };
-        logo_file = std::make_unique<HLE::PXI::FS::HostFile>(settings.get<Settings::PathDataDir>() + "/placeholder_logo.bin", HLE::PXI::FS::HostFile::Default);
+        logo_file = std::make_unique<HLE::PXI::FS::HostFile>(data_dir_path + "/placeholder_logo.bin", HLE::PXI::FS::HostFile::Default);
         auto [res] = logo_file->OpenReadOnly(file_context);
         if (res != HLE::OS::RESULT_OK) {
             throw Mikage::Exceptions::Invalid("Could not open placeholder_logo.bin. Re-run NAND bootstrap.");
@@ -602,15 +602,15 @@ public:
 
 } // end of anonymous namespace
 
-GameCardFrom3DSX::GameCardFrom3DSX(std::string_view filename, Settings::Settings& settings) : source(std::string { filename }), settings(settings) {
+GameCardFrom3DSX::GameCardFrom3DSX(std::string_view filename, const std::string& data_dir_path) : source(std::string { filename }), data_dir_path(data_dir_path) {
 }
 
-GameCardFrom3DSX::GameCardFrom3DSX(int file_descriptor, Settings::Settings& settings) : source(file_descriptor), settings(settings) {
+GameCardFrom3DSX::GameCardFrom3DSX(int file_descriptor, const std::string& data_dir_path) : source(file_descriptor), data_dir_path(data_dir_path) {
 }
 
 std::optional<std::unique_ptr<HLE::PXI::FS::File>> GameCardFrom3DSX::GetPartitionFromId(Loader::NCSDPartitionId id) {
     if (id == NCSDPartitionId::Executable) {
-        return std::make_unique<Adaptor3DSXToNCCH>(std::visit(GameCardSourceOpener{}, source), settings);
+        return std::make_unique<Adaptor3DSXToNCCH>(std::visit(GameCardSourceOpener{}, source), data_dir_path);
     } else {
         return std::nullopt;
     }

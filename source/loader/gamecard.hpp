@@ -79,16 +79,17 @@ public:
  * Utility to wrap a 3DSX file into a single-partition GameCard.
  */
 class GameCardFrom3DSX final : public GameCard {
-    Settings::Settings& settings;
     std::optional<std::unique_ptr<HLE::PXI::FS::File>> GetPartitionFromId(NCSDPartitionId id) override;
     bool HasPartition(NCSDPartitionId id) override;
 
     // Filename or file descriptor
     std::variant<std::string, int> source;
 
+    std::string data_dir_path;
+
 public:
-    GameCardFrom3DSX(std::string_view filename, Settings::Settings& settings);
-    GameCardFrom3DSX(int file_descriptor, Settings::Settings& settings);
+    GameCardFrom3DSX(std::string_view filename, const std::string& data_dir_path);
+    GameCardFrom3DSX(int file_descriptor, const std::string& data_dir_path);
 
     static bool IsLoadableFile(std::string_view filename);
     static bool IsLoadableFile(int file_descriptor);
