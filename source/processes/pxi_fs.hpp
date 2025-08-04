@@ -69,6 +69,7 @@ public:
     }
 
     template<typename T>
+    requires(std::is_standard_layout_v<T> && std::is_trivially_copyable_v<T> && std::is_trivially_default_constructible_v<T>)
     FileBufferInHostMemory(T& t) : memory(CheckCast(t)), size(sizeof(T)) {
     }
 
