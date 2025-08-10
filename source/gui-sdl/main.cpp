@@ -641,7 +641,7 @@ if (bootstrap_nand) // Experimental system bootstrapper
 
                 case SDLK_LSHIFT:
                 case SDLK_RSHIFT:
-                    input.SetPressetSelect(pressed);
+                    input.SetPressedSelect(pressed);
                     break;
 
                 case SDLK_a:
