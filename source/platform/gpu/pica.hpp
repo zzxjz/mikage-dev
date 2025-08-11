@@ -35,6 +35,8 @@ struct AlphaTest {
     enum class Function : uint32_t {
         Always             = 1,
         NotEqual           = 3,
+        LessThan           = 4,
+        LessThanOrEqual    = 5,
         GreaterThan        = 6,
         GreaterThanOrEqual = 7,
     };

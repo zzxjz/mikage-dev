@@ -669,6 +669,12 @@ std::string GenerateFragmentShader(Context& context) {
             switch (func) {
             case AlphaTest::Function::NotEqual:
                 return "==";
+            
+            case AlphaTest::Function::LessThan:
+                return ">=";
+
+            case AlphaTest::Function::LessThanOrEqual:
+                return ">";
 
             case AlphaTest::Function::GreaterThan:
                 return "<=";
