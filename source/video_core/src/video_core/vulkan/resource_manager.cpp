@@ -642,9 +642,9 @@ void ResourceManager::FlushRenderTarget(RenderTargetResource& target) {
                     static_cast<uint8_t>(*data++)
                 };
                 ++data; // Skip alpha channel
-                Memory::Write<uint8_t>(target_memory, off++, r);
-                Memory::Write<uint8_t>(target_memory, off++, g);
                 Memory::Write<uint8_t>(target_memory, off++, b);
+                Memory::Write<uint8_t>(target_memory, off++, g);
+                Memory::Write<uint8_t>(target_memory, off++, r);
                 break;
             }
 
