@@ -1,0 +1,98 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Conan
+      run: |
+        python -m pip install --upgrade pip
+        pip install conan
+
+    - name: Verify Conan installation
+      run: conan --version
+
+    - name: Create build directory
+      run: mkdir build
+
+    - name: Configure Conan and install dependencies
+      working-directory: ./build
+      run: |
+        conan install .. -of . --build=missing
+
+    - name: Configure CMake
+      working-directory: ./build
+      run: |
+        cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE
+
+    - name: Build with Ninja
+      working-directory: ./build
+      run: |
+        ninja
+
+    - name: Install (without sudo on Windows)
+      working-directory: ./build
+      run: |
+        ninja install
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mikage-windows-build
+        path: |
+          build/
+          !build/CMakeFiles/
+        retention-days: 7
+
+  build-debug:
+    runs-on: windows-latest
+    if: false  # 设置为 true 如果需要同时构建 Debug 版本
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Conan
+      run: |
+        python -m pip install --upgrade pip
+        pip install conan
+
+    - name: Create build directory
+      run: mkdir build_debug
+
+    - name: Configure Conan and install dependencies (Debug)
+      working-directory: ./build_debug
+      run: |
+        conan install .. -of . --build=missing -s build_type=Debug
+
+    - name: Configure CMake (Debug)
+      working-directory: ./build_debug
+      run: |
+        cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Debug
+
+    - name: Build with Ninja (Debug)
+      working-directory: ./build_debug
+      run: |
+        ninja
+
+    - name: Upload debug build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mikage-windows-debug
+        path: |
+          build_debug/
+          !build_debug/CMakeFiles/
+        retention-days: 7
