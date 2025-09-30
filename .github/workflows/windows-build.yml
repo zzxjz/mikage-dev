@@ -22,8 +22,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install conan
 
-    - name: Verify Conan installation
-      run: conan --version
+    - name: Detect and create default Conan profile
+      run: conan profile detect --force
+
+    - name: Verify Conan profile
+      run: conan profile show
 
     - name: Create build directory
       run: mkdir build
@@ -55,44 +58,4 @@ jobs:
         path: |
           build/
           !build/CMakeFiles/
-        retention-days: 7
-
-  build-debug:
-    runs-on: windows-latest
-    if: false  # 设置为 true 如果需要同时构建 Debug 版本
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Conan
-      run: |
-        python -m pip install --upgrade pip
-        pip install conan
-
-    - name: Create build directory
-      run: mkdir build_debug
-
-    - name: Configure Conan and install dependencies (Debug)
-      working-directory: ./build_debug
-      run: |
-        conan install .. -of . --build=missing -s build_type=Debug
-
-    - name: Configure CMake (Debug)
-      working-directory: ./build_debug
-      run: |
-        cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Debug
-
-    - name: Build with Ninja (Debug)
-      working-directory: ./build_debug
-      run: |
-        ninja
-
-    - name: Upload debug build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: mikage-windows-debug
-        path: |
-          build_debug/
-          !build_debug/CMakeFiles/
         retention-days: 7
