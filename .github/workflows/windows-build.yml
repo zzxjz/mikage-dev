@@ -79,7 +79,7 @@ jobs:
       working-directory: ./build
       run: |
         # 方法1: 尝试不使用工具链文件
-        cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE -DCMAKE_CXX_STANDARD=17
+        cmake .. -G Ninja -DCMAKE_TOOLCHAIN_FILE=conan_toolchain.cmake -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE -DCMAKE_CXX_STANDARD=17
         
         # 如果上面失败，可以尝试方法2: 使用Visual Studio生成器而不是Ninja
         # cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE
