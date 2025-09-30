@@ -25,40 +25,43 @@ jobs:
     - name: Detect and create default Conan profile
       run: conan profile detect --force
 
-    - name: Modify profile to use C++17
+    - name: Modify Conan profile for C++17
       run: |
-          # 在 Windows PowerShell 中，可以使用以下命令直接向 profile 文件追加设置
-          # 首先确保路径正确，以下路径是默认路径
-          $profilePath = "$env:USERPROFILE\.conan2\profiles\default"
-          # 检查并添加 compiler.cppstd 设置
-          $content = Get-Content $profilePath
-          if ($content -match '^compiler\.cppstd=') {
-              # 如果已存在，则替换
-              $content -replace '^compiler\.cppstd=.*', 'compiler.cppstd=17' | Set-Content $profilePath
-          } else {
-              # 如果不存在，则在 [settings] 部分后添加
-              $newContent = @()
-              $inSettings = $false
-              foreach ($line in $content) {
-                  $newContent += $line
-                  if ($line -eq '[settings]') {
-                      $inSettings = $true
-                  } elseif ($inSettings -and $line -match '^compiler\.version=') {
-                      # 在 compiler.version 行后插入
-                      $newContent += 'compiler.cppstd=17'
-                      $inSettings = $false # 假设只在第一个 compiler.version 后添加一次
-                  }
-              }
-              # 处理没有 compiler.version 的情况（理论上不会）
-              if ($inSettings) {
-                  $newContent += 'compiler.cppstd=17'
-              }
-              $newContent | Set-Content $profilePath
-          }
+        # 获取profile文件路径
+        $profilePath = "$env:USERPROFILE\.conan2\profiles\default"
+        
+        # 读取文件内容
+        $content = Get-Content $profilePath -Raw
+        
+        # 检查是否已包含cppstd设置
+        if ($content -match 'compiler\.cppstd') {
+            # 替换现有的cppstd设置
+            $content = $content -replace 'compiler\.cppstd\s*=\s*\w+', 'compiler.cppstd=17'
+        } else {
+            # 在[settings]部分添加cppstd设置
+            $content = $content -replace '(\[settings\])', "`$1`ncompiler.cppstd=17"
+        }
+        
+        # 确保arch设置正确
+        if ($content -match 'arch\s*=') {
+            $content = $content -replace 'arch\s*=\s*\w+', 'arch=x86_64'
+        } else {
+            $content = $content -replace '(\[settings\])', "`$1`narch=x86_64"
+        }
+        
+        # 写回文件
+        Set-Content -Path $profilePath -Value $content
       shell: pwsh
 
     - name: Verify Conan profile
       run: conan profile show
+
+    - name: Setup MSBuild environment
+      uses: microsoft/setup-msbuild@v1.3.1
+
+    - name: Install Ninja
+      run: |
+        choco install ninja -y
 
     - name: Create build directory
       run: mkdir build
@@ -78,7 +81,7 @@ jobs:
       run: |
         ninja
 
-    - name: Install (without sudo on Windows)
+    - name: Install
       working-directory: ./build
       run: |
         ninja install
@@ -90,4 +93,75 @@ jobs:
         path: |
           build/
           !build/CMakeFiles/
+        retention-days: 7
+
+  # 可选的Debug版本构建
+  build-debug:
+    runs-on: windows-latest
+    if: false  # 设置为 true 如果需要同时构建 Debug 版本
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Conan
+      run: |
+        python -m pip install --upgrade pip
+        pip install conan
+
+    - name: Detect and create default Conan profile
+      run: conan profile detect --force
+
+    - name: Modify Conan profile for C++17
+      run: |
+        $profilePath = "$env:USERPROFILE\.conan2\profiles\default"
+        $content = Get-Content $profilePath -Raw
+        
+        if ($content -match 'compiler\.cppstd') {
+            $content = $content -replace 'compiler\.cppstd\s*=\s*\w+', 'compiler.cppstd=17'
+        } else {
+            $content = $content -replace '(\[settings\])', "`$1`ncompiler.cppstd=17"
+        }
+        
+        if ($content -match 'arch\s*=') {
+            $content = $content -replace 'arch\s*=\s*\w+', 'arch=x86_64'
+        } else {
+            $content = $content -replace '(\[settings\])', "`$1`narch=x86_64"
+        }
+        
+        Set-Content -Path $profilePath -Value $content
+      shell: pwsh
+
+    - name: Setup MSBuild environment
+      uses: microsoft/setup-msbuild@v1.3.1
+
+    - name: Install Ninja
+      run: |
+        choco install ninja -y
+
+    - name: Create build directory
+      run: mkdir build_debug
+
+    - name: Configure Conan and install dependencies (Debug)
+      working-directory: ./build_debug
+      run: |
+        conan install .. -of . --build=missing -s build_type=Debug
+
+    - name: Configure CMake (Debug)
+      working-directory: ./build_debug
+      run: |
+        cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Debug
+
+    - name: Build with Ninja (Debug)
+      working-directory: ./build_debug
+      run: |
+        ninja
+
+    - name: Upload debug build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mikage-windows-debug
+        path: |
+          build_debug/
+          !build_debug/CMakeFiles/
         retention-days: 7
