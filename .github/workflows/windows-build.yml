@@ -25,6 +25,10 @@ jobs:
     - name: Detect and create default Conan profile
       run: conan profile detect --force
 
+    - name: Update Conan profile to use C++17
+      run: |
+        conan profile update settings.compiler.cppstd=17 default
+
     - name: Verify Conan profile
       run: conan profile show
 
