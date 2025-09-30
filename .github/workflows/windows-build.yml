@@ -25,9 +25,37 @@ jobs:
     - name: Detect and create default Conan profile
       run: conan profile detect --force
 
-    - name: Update Conan profile to use C++17
+    - name: Modify profile to use C++17
       run: |
-        conan profile update settings.compiler.cppstd=17 default
+          # 在 Windows PowerShell 中，可以使用以下命令直接向 profile 文件追加设置
+          # 首先确保路径正确，以下路径是默认路径
+          $profilePath = "$env:USERPROFILE\.conan2\profiles\default"
+          # 检查并添加 compiler.cppstd 设置
+          $content = Get-Content $profilePath
+          if ($content -match '^compiler\.cppstd=') {
+              # 如果已存在，则替换
+              $content -replace '^compiler\.cppstd=.*', 'compiler.cppstd=17' | Set-Content $profilePath
+          } else {
+              # 如果不存在，则在 [settings] 部分后添加
+              $newContent = @()
+              $inSettings = $false
+              foreach ($line in $content) {
+                  $newContent += $line
+                  if ($line -eq '[settings]') {
+                      $inSettings = $true
+                  } elseif ($inSettings -and $line -match '^compiler\.version=') {
+                      # 在 compiler.version 行后插入
+                      $newContent += 'compiler.cppstd=17'
+                      $inSettings = $false # 假设只在第一个 compiler.version 后添加一次
+                  }
+              }
+              # 处理没有 compiler.version 的情况（理论上不会）
+              if ($inSettings) {
+                  $newContent += 'compiler.cppstd=17'
+              }
+              $newContent | Set-Content $profilePath
+          }
+      shell: pwsh
 
     - name: Verify Conan profile
       run: conan profile show
