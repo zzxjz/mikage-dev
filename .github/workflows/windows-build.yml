@@ -51,13 +51,17 @@ jobs:
         
         # 写回文件
         Set-Content -Path $profilePath -Value $content
+        
+        # 显示修改后的profile内容
+        Write-Host "Modified Conan profile:"
+        Get-Content $profilePath
       shell: pwsh
 
     - name: Verify Conan profile
       run: conan profile show
 
-    - name: Setup MSBuild environment
-      uses: microsoft/setup-msbuild@v1.3.1
+    - name: Setup Visual Studio environment
+      uses: ilammy/msvc-dev-cmd@v1
 
     - name: Install Ninja
       run: |
@@ -71,10 +75,14 @@ jobs:
       run: |
         conan install .. -of . --build=missing
 
-    - name: Configure CMake
+    - name: Configure CMake (alternative approach)
       working-directory: ./build
       run: |
-        cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE
+        # 方法1: 尝试不使用工具链文件
+        cmake .. -G Ninja -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE -DCMAKE_CXX_STANDARD=17
+        
+        # 如果上面失败，可以尝试方法2: 使用Visual Studio生成器而不是Ninja
+        # cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE
 
     - name: Build with Ninja
       working-directory: ./build
@@ -93,75 +101,4 @@ jobs:
         path: |
           build/
           !build/CMakeFiles/
-        retention-days: 7
-
-  # 可选的Debug版本构建
-  build-debug:
-    runs-on: windows-latest
-    if: false  # 设置为 true 如果需要同时构建 Debug 版本
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Install Conan
-      run: |
-        python -m pip install --upgrade pip
-        pip install conan
-
-    - name: Detect and create default Conan profile
-      run: conan profile detect --force
-
-    - name: Modify Conan profile for C++17
-      run: |
-        $profilePath = "$env:USERPROFILE\.conan2\profiles\default"
-        $content = Get-Content $profilePath -Raw
-        
-        if ($content -match 'compiler\.cppstd') {
-            $content = $content -replace 'compiler\.cppstd\s*=\s*\w+', 'compiler.cppstd=17'
-        } else {
-            $content = $content -replace '(\[settings\])', "`$1`ncompiler.cppstd=17"
-        }
-        
-        if ($content -match 'arch\s*=') {
-            $content = $content -replace 'arch\s*=\s*\w+', 'arch=x86_64'
-        } else {
-            $content = $content -replace '(\[settings\])', "`$1`narch=x86_64"
-        }
-        
-        Set-Content -Path $profilePath -Value $content
-      shell: pwsh
-
-    - name: Setup MSBuild environment
-      uses: microsoft/setup-msbuild@v1.3.1
-
-    - name: Install Ninja
-      run: |
-        choco install ninja -y
-
-    - name: Create build directory
-      run: mkdir build_debug
-
-    - name: Configure Conan and install dependencies (Debug)
-      working-directory: ./build_debug
-      run: |
-        conan install .. -of . --build=missing -s build_type=Debug
-
-    - name: Configure CMake (Debug)
-      working-directory: ./build_debug
-      run: |
-        cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Debug
-
-    - name: Build with Ninja (Debug)
-      working-directory: ./build_debug
-      run: |
-        ninja
-
-    - name: Upload debug build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: mikage-windows-debug
-        path: |
-          build_debug/
-          !build_debug/CMakeFiles/
         retention-days: 7
