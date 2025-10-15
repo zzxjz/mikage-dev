@@ -1,35 +1,42 @@
-image: ubuntu:24.04
+name: Build Mikage on x86 Mac
 
-stages:
-  - build
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Allow manual triggering
 
-variables:
-  GIT_SUBMODULE_STRATEGY: recursive
-  CONAN_HOME: ${CI_PROJECT_DIR}/.conan2
+jobs:
+  build:
+    runs-on: macos-latest  # 使用GitHub提供的macOS最新版本运行器
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-build:
-  stage: build
-  tags:
-    - saas-linux-medium-amd64
-  cache:
-    key: conan
-    paths:
-      - .conan2
-  script:
-    # Development tools
-    - apt-get update
-    - apt-get install -y cmake git ninja-build pkgconf python3-pip
-    - pip install conan --break-system-packages
+    - name: Install build dependencies
+      run: |
+        brew update
+        brew install conan cmake ninja pkg-config
+      # 根据Mikage的实际需求，你可能需要在此添加其他依赖库
 
-    # Project dependencies
-    - apt-get install -y libvulkan-dev libx11-dev libx11-xcb-dev libfontenc-dev libice-dev libxau-dev libxaw7-dev libegl-dev xkb-data libxcomposite-dev libxdamage-dev libxfixes-dev libxi-dev libxinerama-dev libxmuu-dev libxrandr-dev libxrender-dev libxres-dev libxtst-dev libxv-dev libxxf86vm-dev libxcb-glx0-dev libxcb-render-util0-dev libxcb-xkb-dev libxcb-icccm4-dev libxcb-keysyms1-dev libxcb-randr0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-dri3-dev libxcb-cursor-dev libxcb-dri2-0-dev libxcb-dri3-dev libxcb-present-dev libxcb-ewmh-dev libxcb-res0-dev libxcb-composite0 libxcb-composite0-dev libxcursor-dev libxcursor1 libxkbfile-dev libxkbfile1 libxss-dev libxss1 uuid-dev libxcb-util-dev
-    - conan profile detect -e
-    - conan config install --args="-b mikage" https://github.com/mikage-emu/conan-3ds.git && conan setup-3ds
-    - conan install . --build=missing -c tools.system.package_manager:mode=install
-    - conan cache clean
+    - name: Configure with Conan
+      run: |
+        mkdir build
+        cd build
+        conan install .. -of . --build=missing
+      # 如需Debug构建，将上行改为：
+      # conan install .. -of . --build=missing -s build_type=Debug
 
-    # Setup Conan dependencies and build project
-    - mkdir build && cd build
-    - conan install .. -of .
-    - cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=${CI_PROJECT_DIR}/install -DCMAKE_PREFIX_PATH=${CI_PROJECT_DIR}/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_COLOR_DIAGNOSTICS=ON
-    - ninja
+    - name: Configure with CMake
+      run: |
+        cd build
+        cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+      # 如需Debug构建，将上行改为：
+      # cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Debug
+
+    - name: Build and install
+      run: |
+        cd build
+        ninja && sudo ninja install
