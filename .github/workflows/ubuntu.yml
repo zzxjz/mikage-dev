@@ -27,7 +27,8 @@ jobs:
       run: |
         mkdir build
         cd build
-        conan install .. -of . --build=missing
+        # 强制使用较新版本的 glslang
+        conan install .. -of . --build=missing --override glslang=1.3.268.0
 
     - name: Configure with CMake
       run: |
