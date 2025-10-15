@@ -5,11 +5,11 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-latest  # 使用GitHub提供的macOS最新版本运行器
+    runs-on: macos-latest
     
     steps:
     - name: Checkout repository
@@ -19,22 +19,20 @@ jobs:
       run: |
         brew update
         brew install conan cmake ninja pkg-config
-      # 根据Mikage的实际需求，你可能需要在此添加其他依赖库
+
+    - name: Configure Conan default profile
+      run: conan profile detect --force
 
     - name: Configure with Conan
       run: |
         mkdir build
         cd build
         conan install .. -of . --build=missing
-      # 如需Debug构建，将上行改为：
-      # conan install .. -of . --build=missing -s build_type=Debug
 
     - name: Configure with CMake
       run: |
         cd build
         cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
-      # 如需Debug构建，将上行改为：
-      # cmake .. -G Ninja --toolchain conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Debug
 
     - name: Build and install
       run: |
